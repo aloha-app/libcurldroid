@@ -24,3 +24,9 @@ proguard/
 
 # Log Files
 *.log
+
+##
+jni/shared/curl
+.settings
+.classpath
+.project
