@@ -30,3 +30,4 @@ jni/shared/curl
 .settings
 .classpath
 .project
+obj/
