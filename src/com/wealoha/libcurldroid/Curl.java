@@ -7,7 +7,12 @@ import com.wealoha.libcurldroid.CurlOpt.OptLong;
 import com.wealoha.libcurldroid.CurlOpt.OptObjectPoint;
 
 /**
- * Curl Jni Wrapper
+ * Curl Jni Wrapper</br>
+ * 
+ * Usage: See MainActivity in demo project<br/>
+ * 
+ * 
+ * Curl object isn't thread safe, DO NOT share one Curl instant through multiple threads.
  * 
  * @author javamonk
  * @createTime 2015-01-29 12:39:39
