@@ -65,6 +65,14 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasySetoptObjectPo
 
 /*
  * Class:     com_wealoha_libcurldroid_Curl
+ * Method:    curlEasySetoptObjectPointArrayNative
+ * Signature: (JI[Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasySetoptObjectPointArrayNative
+  (JNIEnv *, jobject, jlong, jint, jobjectArray);
+
+/*
+ * Class:     com_wealoha_libcurldroid_Curl
  * Method:    curlEasyPerformNavite
  * Signature: (J)I
  */
@@ -79,6 +87,28 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasyPerformNavite
 
 #ifndef _Included_com_wealoha_libcurldroid_Curl_Callback
 #define _Included_com_wealoha_libcurldroid_Curl_Callback
+#ifdef __cplusplus
+extern "C" {
+#endif
+#ifdef __cplusplus
+}
+#endif
+#endif
+/* Header for class com_wealoha_libcurldroid_Curl_ReadCallback */
+
+#ifndef _Included_com_wealoha_libcurldroid_Curl_ReadCallback
+#define _Included_com_wealoha_libcurldroid_Curl_ReadCallback
+#ifdef __cplusplus
+extern "C" {
+#endif
+#ifdef __cplusplus
+}
+#endif
+#endif
+/* Header for class com_wealoha_libcurldroid_Curl_WriteCallback */
+
+#ifndef _Included_com_wealoha_libcurldroid_Curl_WriteCallback
+#define _Included_com_wealoha_libcurldroid_Curl_WriteCallback
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -24,8 +24,28 @@ public class Curl {
 	
 	private long handle;
 	
-	public interface Callback {
-		public int callback(byte[] data);
+	public interface Callback {}
+	
+	public interface WriteCallback extends Callback {
+		/**
+		 * Called when data received from peer (for example: header, body)
+		 * 
+		 * @param data 
+		 * @return the number of bytes actually taken care of.
+		 * @see http://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
+		 */
+		public int readData(byte[] data);
+	}
+	
+	public interface ReadCallback extends Callback {
+		/**
+		 * Called when data need send to peer (for example: header, form)
+		 * 
+		 * @param data the buffer to fill
+		 * @return the actual number of bytes that it stored in that memory area.
+		 * @see http://curl.haxx.se/libcurl/c/CURLOPT_READFUNCTION.html
+		 */
+		public int writeData(byte[] data);
 	}
 	
 	/**
@@ -73,7 +93,7 @@ public class Curl {
 	
 	private native int curlEasySetoptLongNative(long handle, int opt, long value); 
 	
-	public CurlCode curlEasySetopt(OptFunctionPoint opt, Callback callback) {
+	public CurlCode curlEasySetopt(OptFunctionPoint opt, WriteCallback callback) {
 		Log.v(TAG, "curlEastSetopt: " + opt + "=" + callback);
 		return CurlCode.fromValue(curlEasySetoptFunctionNative(handle, opt.getValue(), callback));
 	}
@@ -86,6 +106,12 @@ public class Curl {
 	}
 	
 	private native int curlEasySetoptObjectPointNative(long handle, int opt, String value);
+	
+	public CurlCode curlEasySetopt(OptObjectPoint opt, String[] values) {
+		Log.v(TAG, "curlEastSetopt: " + opt + "=" + values);
+		return CurlCode.fromValue(curlEasySetoptObjectPointArrayNative(handle, opt.getValue(), values));
+	}
+	private native int curlEasySetoptObjectPointArrayNative(long handle, int opt, String[] value);
 	
 	public CurlCode curlEasyPerform() {
 		Log.v(TAG, "curlEasyPerform");
