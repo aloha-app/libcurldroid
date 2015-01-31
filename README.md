@@ -12,3 +12,8 @@ API
 ----
 
 to be done..
+
+
+In the end
+-----
+Great thanks to curl-android project: https://github.com/liudongmiao/curl-android
