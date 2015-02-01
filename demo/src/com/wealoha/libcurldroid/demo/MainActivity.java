@@ -8,14 +8,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
 
-import com.wealoha.libcurldroid.Curl;
-import com.wealoha.libcurldroid.Curl.WriteCallback;
-import com.wealoha.libcurldroid.CurlCode;
-import com.wealoha.libcurldroid.CurlConstant;
+import com.wealoha.libcurldroid.CurlEasy;
 import com.wealoha.libcurldroid.CurlException;
-import com.wealoha.libcurldroid.CurlOpt.OptFunctionPoint;
-import com.wealoha.libcurldroid.CurlOpt.OptLong;
 import com.wealoha.libcurldroid.CurlOpt.OptObjectPoint;
+import com.wealoha.libcurldroid.Result;
 
 /**
  * 
@@ -65,7 +61,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
     	super.onResume();
     	
-    	Curl curl = new Curl();
+    	/*Curl curl = new Curl();
         CurlCode result = curl.curlGlobalInit(CurlConstant.CURL_GLOBAL_NOTHING);
         Log.i(TAG, "result: " + result);
         try {
@@ -95,18 +91,17 @@ public class MainActivity extends Activity {
 					return data.length;
 				}
 			});
-			/*curl.curlEasySetopt(OptFunctionPoint.CURLOPT_READFUNCTION, new ReadCallback() {
+			/curl.curlEasySetopt(OptFunctionPoint.CURLOPT_READFUNCTION, new ReadCallback() {
 				@Override
 				public int writeData(byte[] data) {
 					return 0;
 				}
-			});*/
+			});/
 			// include header in write
 			// curl.curlEasySetopt(OptLong.CURLOPT_HEADER, 1);
 			// list!
 			curl.curlEasySetopt(OptObjectPoint.CURLOPT_HTTPHEADER, new String[] {
 				"Accept-Encoding: gzip, deflate, sdch",
-				//"Accept-Type: */*"
 			});
 			
 			curl.curlEasySetopt(OptObjectPoint.CURLOPT_URL, "http://www.baidu.com/");
@@ -114,6 +109,18 @@ public class MainActivity extends Activity {
 			Log.i(TAG, "result: " + result);
 			curl.curlEasyCleanup();
 		} catch (CurlException e) {
+			Log.w(TAG, "Exception", e);
+		}*/
+		
+		try {
+			Result result = CurlEasy.newInstance() //
+					.setIpResolveV4() //
+					.addHeader("Accept-Encoding", "gzip, deflate, sdch") //
+					//.setProxy("socks5h://192.168.9.104:8888") //
+					.getUrl("http://www.baidu.com") //
+					.perform();
+			Log.d(TAG, "Body:" + result.getBodyAsString());
+		} catch (Exception e) {
 			Log.w(TAG, "Exception", e);
 		}
     }

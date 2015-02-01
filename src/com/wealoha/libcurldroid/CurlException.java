@@ -9,4 +9,22 @@ public class CurlException extends Exception {
 
 	private static final long serialVersionUID = -5532332305546682790L;
 
+	private final CurlCode curlCode;
+
+	public CurlException() {
+		super();
+		this.curlCode = null;
+	}
+	
+	public CurlException(CurlCode curlCode) {
+		super("curlCode: " + curlCode);
+		this.curlCode = curlCode;
+		
+	}
+	
+	public CurlCode getCurlCode() {
+		return curlCode;
+	}
+	
+	
 }

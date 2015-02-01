@@ -74,7 +74,9 @@ public class Curl {
 	
 	public void curlEasyCleanup() {
 		Log.v(TAG, "curlEastCleanup: " + handle);
-		curlEasyCleanupNative(handle);
+		if (handle != 0) {
+			curlEasyCleanupNative(handle);
+		}
 		handle = 0;
 	}
 	

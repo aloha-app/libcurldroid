@@ -254,6 +254,7 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasySetoptObjectPo
 		slist = curl_slist_append(slist, str);
 		env->ReleaseStringUTFChars(value, str);
 	}
+	holder->addCurlSlist(slist);
 	LOGD("set slist");
 	return curl_easy_setopt(curl, (CURLoption) opt, slist);
 }

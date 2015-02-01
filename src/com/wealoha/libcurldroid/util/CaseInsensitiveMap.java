@@ -11,7 +11,7 @@ import java.util.Map;
  * @createTime 2015-01-31 10:28:32
  */
 @SuppressWarnings({ "rawtypes", "unchecked" })
-public class CaseInsensitiveMap extends HashMap {
+public class CaseInsensitiveMap<K, V> extends HashMap {
 
 	private static final long serialVersionUID = -3480280688459075349L;
 
@@ -29,8 +29,9 @@ public class CaseInsensitiveMap extends HashMap {
 	
 	@Override
 	public void putAll(Map map) {
-		for (Object key : map.keySet()) {
-			put(key, map.get(key));
+		for (Object entry : map.entrySet()) {
+			Entry<Object, Object> e = (Entry<Object, Object>) entry;
+			put(e.getKey(), e.getValue());
 		}
 	}
 	@Override
