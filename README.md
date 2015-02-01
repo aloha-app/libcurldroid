@@ -20,7 +20,9 @@ Build
 ------
 
 Provided binary libcares and libcurl comes with default configure options.
-You can build with your custom configure options, may be the shortest(and easiest) document on the net:] https://github.com/aloha-app/libcurldroid/blob/master/jni/BUILD.md
+You can build with your custom configure options.
+
+Full build instructions here: https://github.com/aloha-app/libcurldroid/blob/master/jni/BUILD.md , may be the shortest(and easiest) document on the net:] 
 
 In the end
 -----
