@@ -26,6 +26,20 @@ public class Curl {
 	
 	public interface Callback {}
 	
+	private static Object CLEANUP = new Object() {
+		
+		@Override
+		protected void finalize() throws Throwable {
+			if (INIT) {
+				Log.i(TAG, "curlGlobalCleanup");
+				curlGlobalCleanupNative();
+			}
+		}
+		
+	};
+	
+	private static boolean INIT = false;
+	
 	public interface WriteCallback extends Callback {
 		/**
 		 * Called when data received from peer (for example: header, body)
@@ -48,19 +62,28 @@ public class Curl {
 		public int writeData(byte[] data);
 	}
 	
-	/**
-	 * 
-	 * @param flag {@link CurlConstant#CURL_GLOBAL_*}
-	 * @return
-	 */
-	public CurlCode curlGlobalInit(int flag) {
-		Log.v(TAG, "curlGlobalInit: " + flag);
-		return CurlCode.fromValue(curlGlobalInitNative(flag));
+	
+	public Curl() {
+		if (!INIT) {
+			curlGlobalInit(CurlConstant.CURL_GLOBAL_DEFAULT);
+		}
 	}
 	
-	private native int curlGlobalInitNative(int flags);
+	public static void curlGlobalInit(int flags) {
+		if (INIT) {
+			return;
+		}
+		
+		CurlCode code = CurlCode.fromValue(curlGlobalInitNative(flags));
+		if (code != CurlCode.CURLE_OK) {
+			throw new IllegalStateException("curlGlobalInit fail: " + code);
+		}
+		INIT = true;
+	}
 	
-	public native void curlGlobalCleanup();
+	private native static int curlGlobalInitNative(int flags);
+	
+	private native static void curlGlobalCleanupNative();
 	
 	public void curlEasyInit() throws CurlException  {
 		Log.v(TAG, "curlEastInit");

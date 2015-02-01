@@ -49,10 +49,17 @@ JNIEnv *JNU_GetEnv() {
    return env;
 }
 
+// keep string reference by libcurl, release after perform
+typedef struct {
+	jstring obj;
+	const char *str;
+} jobject_str_t;
+
 class Holder {
 	CURL* mCurl;
 	std::list<jobject> m_j_global_refs;
 	std::list<struct curl_slist*> m_slists;
+	std::list<jobject_str_t*> m_string_refs;
 
 	void cleanGlobalRefs() {
 		JNIEnv * env = JNU_GetEnv();
@@ -62,6 +69,16 @@ class Holder {
 		    LOGD(".");
 		    env->DeleteGlobalRef(ref);
 		    m_j_global_refs.pop_front();
+		}
+
+		LOGD("clean ref string");
+		while (!m_string_refs.empty()) {
+			jobject_str_t *ref = m_string_refs.front();
+			LOGD(".");
+			env->ReleaseStringUTFChars(ref->obj, ref->str);
+			env->DeleteGlobalRef(ref->obj);
+			free(ref);
+			m_string_refs.pop_front();
 		}
 	}
 
@@ -74,6 +91,7 @@ class Holder {
 			m_slists.pop_front();
 		}
 	}
+
 
 public:
 	Holder(CURL* curl) {
@@ -96,6 +114,14 @@ public:
 		m_j_global_refs.push_back(obj);
 	}
 
+	void addStringGlobalRefs(jstring string, const char *str) {
+		jobject_str_t *ref;
+		ref = (jobject_str_t *) malloc(sizeof(jobject_str_t));
+		ref->obj = string;
+		ref->str = str;
+		m_string_refs.push_back(ref);
+	}
+
 	void addCurlSlist(struct curl_slist *slist) {
 		m_slists.push_back(slist);
 	}
@@ -103,12 +129,12 @@ public:
 };
 
 JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlGlobalInitNative
-  (JNIEnv * env, jobject obj, jint flag) {
+  (JNIEnv * env, jclass cls, jint flag) {
 	curl_global_init((int) flag);
 }
 
-JNIEXPORT void JNICALL Java_com_wealoha_libcurldroid_Curl_curlGlobalCleanup
-  (JNIEnv * env, jobject obj) {
+JNIEXPORT void JNICALL Java_com_wealoha_libcurldroid_Curl_curlGlobalCleanupNative
+  (JNIEnv * env, jclass cls) {
 	curl_global_cleanup();
 }
 
@@ -226,12 +252,25 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasySetoptObjectPo
 	int result;
 	Holder* holder = (Holder*) handle;
 	CURL * curl = holder->getCurl();
+	jstring value_ref;
 	str = env->GetStringUTFChars(value, 0);
 	if (str == 0) {
 	   return 0;
     }
+
 	result = (int) curl_easy_setopt(curl, (CURLoption) opt, str);
-	env->ReleaseStringUTFChars(value, str);
+	switch(opt) {
+	case CURLOPT_POSTFIELDS:
+		// this field not copy data
+		// see http://curl.haxx.se/libcurl/c/CURLOPT_POSTFIELDS.html
+		value_ref = (jstring) env->NewGlobalRef(value);
+		holder->addStringGlobalRefs(value_ref, str);
+		break;
+	default:
+		// free
+		env->ReleaseStringUTFChars(value, str);
+	}
+
 	return result;
 }
 

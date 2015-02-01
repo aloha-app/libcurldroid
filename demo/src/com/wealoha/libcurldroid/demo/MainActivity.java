@@ -8,9 +8,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
 
-import com.wealoha.libcurldroid.CurlEasy;
-import com.wealoha.libcurldroid.CurlException;
-import com.wealoha.libcurldroid.CurlOpt.OptObjectPoint;
+import com.wealoha.libcurldroid.CurlHttp;
 import com.wealoha.libcurldroid.Result;
 
 /**
@@ -60,6 +58,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
     	super.onResume();
+    	
+    	textView.setText("");
     	
     	/*Curl curl = new Curl();
         CurlCode result = curl.curlGlobalInit(CurlConstant.CURL_GLOBAL_NOTHING);
@@ -113,13 +113,16 @@ public class MainActivity extends Activity {
 		}*/
 		
 		try {
-			Result result = CurlEasy.newInstance() //
+			Result result = CurlHttp.newInstance() //
 					.setIpResolveV4() //
 					.addHeader("Accept-Encoding", "gzip, deflate, sdch") //
 					//.setProxy("socks5h://192.168.9.104:8888") //
-					.getUrl("http://www.baidu.com") //
+					.postUrl("http://aaba.me/cgi-bin/t.cgi") //
+					.addPostParam("hello", "World!") //
+					.addPostParam("foo", "Bar!") //
 					.perform();
 			Log.d(TAG, "Body:" + result.getBodyAsString());
+			debug(result.getBodyAsString());
 		} catch (Exception e) {
 			Log.w(TAG, "Exception", e);
 		}

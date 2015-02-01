@@ -13,15 +13,15 @@ extern "C" {
  * Signature: (I)I
  */
 JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlGlobalInitNative
-  (JNIEnv *, jobject, jint);
+  (JNIEnv *, jclass, jint);
 
 /*
  * Class:     com_wealoha_libcurldroid_Curl
- * Method:    curlGlobalCleanup
+ * Method:    curlGlobalCleanupNative
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_com_wealoha_libcurldroid_Curl_curlGlobalCleanup
-  (JNIEnv *, jobject);
+JNIEXPORT void JNICALL Java_com_wealoha_libcurldroid_Curl_curlGlobalCleanupNative
+  (JNIEnv *, jclass);
 
 /*
  * Class:     com_wealoha_libcurldroid_Curl
