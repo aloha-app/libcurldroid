@@ -18,18 +18,28 @@ public class Result {
 
 	private static final String TAG = Result.class.getSimpleName();
 	private final int status;
+	private final String statusLine;
 	private final Map<String, String> headers;
 	private final byte[] body;
 	private transient String bodyString;
-	public Result(int status, Map<String, String> headers, byte[] body) {
+	public Result(int status, String statusLine, Map<String, String> headers, byte[] body) {
 		super();
 		this.status = status;
+		this.statusLine = statusLine;
 		this.headers = headers;
 		this.body = body;
 	}
 	
 	public int getStatus() {
 		return status;
+	}
+	
+	/**
+	 * 
+	 * @return may contains \n at end
+	 */
+	public String getStatusLine() {
+		return statusLine;
 	}
 	
 	public Map<String, String> getHeaders() {

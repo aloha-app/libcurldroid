@@ -15,6 +15,10 @@ public abstract class StringUtils {
 
 	private StringUtils() {}
 	
+	public static boolean isBlank(String str) {
+		return str == null || "".equals(str.trim());
+	}
+	
 	public static String[] split(String value, String separator, int limit) {
 		// Split function borrowed from commons-lang3
 		return splitWorker(value, separator, limit, false);

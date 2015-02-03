@@ -1,10 +1,16 @@
 package com.wealoha.libcurldroid;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import android.util.Log;
 
 import com.wealoha.libcurldroid.CurlOpt.OptFunctionPoint;
 import com.wealoha.libcurldroid.CurlOpt.OptLong;
 import com.wealoha.libcurldroid.CurlOpt.OptObjectPoint;
+import com.wealoha.libcurldroid.easy.MultiPart;
+import com.wealoha.libcurldroid.easy.NameValuePart;
 
 /**
  * Curl Jni Wrapper</br>
@@ -137,6 +143,22 @@ public class Curl {
 		return CurlCode.fromValue(curlEasySetoptObjectPointArrayNative(handle, opt.getValue(), values));
 	}
 	private native int curlEasySetoptObjectPointArrayNative(long handle, int opt, String[] value);
+	
+	/**
+	 * if set multiple times, previous form will be cleared!
+	 * 
+	 * @param multiParts
+	 * @return
+	 */
+	public CurlFormadd setFormdata(List<MultiPart> multiParts) {
+		if (multiParts != null && multiParts.size() > 0) {
+			return CurlFormadd.fromValue(setFormdataNative(handle, multiParts.toArray(new MultiPart[multiParts.size()])));
+		} else {
+			return CurlFormadd.CURL_FORMADD_NULL;
+		}
+	}
+	
+	private native int setFormdataNative(long handle, MultiPart[] multiArray);
 	
 	public CurlCode curlEasyPerform() {
 		Log.v(TAG, "curlEasyPerform");

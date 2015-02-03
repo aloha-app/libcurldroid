@@ -7,13 +7,17 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import android.util.Log;
 
-import com.wealoha.libcurldroid.Curl.ReadCallback;
 import com.wealoha.libcurldroid.Curl.WriteCallback;
 import com.wealoha.libcurldroid.CurlOpt.OptFunctionPoint;
 import com.wealoha.libcurldroid.CurlOpt.OptLong;
@@ -35,14 +39,8 @@ public class CurlHttp {
 	private Curl curl;
 	private Map<String, String> headerMap;
 	private Map<String, Object> postFieldMap;
-	private Map<String, MultiPart> multiPartMap;
+	private List<MultiPart> multiPartList;
 	private Boolean get;
-	
-	static {
-		Curl curl = new Curl();
-		Log.i(TAG, "do curlGlobalInit");
-		curl.curlGlobalInit(CurlConstant.CURL_GLOBAL_NOTHING);
-	}
 	
 	private CurlHttp() {
 		curl = new Curl();
@@ -58,7 +56,8 @@ public class CurlHttp {
 		CurlHttp curlEasy = new CurlHttp();
 		curlEasy.curl.curlEasyInit();
 		curlEasy.headerMap = new HashMap<String, String>();
-		curlEasy.headerMap.put("User-Agent", "libcurldroid/0.1.0 libcurl/7.40.0 libcares/1.10.0"); // TODO get curl and cares version from jni
+		// TODO get curl and cares version from jni
+		curlEasy.headerMap.put("User-Agent", "libcurldroid/0.1.0 libcurl/7.40.0 libcares/1.10.0"); 
 		return curlEasy;
 	}
 	
@@ -154,30 +153,56 @@ public class CurlHttp {
 	}
 	
 	/**
+	 * add multipart form field
 	 * 
-	 * @param name
-	 * @param filename
-	 * @param contentType
-	 * @param data
+	 * @param name required
+	 * @param filename if null, "file.dat" will be used
+	 * @param contentType if null, curl will detect from filename
+	 * @param content required
 	 * @return
 	 */
-	public CurlHttp addPostParam(String name, String filename, String contentType, byte[] data) {
-		if (multiPartMap == null) {
-			multiPartMap.put(name, new MultiPart(name, filename, contentType, data));
+	public CurlHttp addPostParam(String name, String filename, String contentType, byte[] content) {
+		if (StringUtils.isBlank(name)) {
+			throw new IllegalArgumentException("name is required");
 		}
+		if (content == null || content.length == 0) {
+			throw new IllegalArgumentException("content is required");
+		}
+		if (multiPartList == null) {
+			multiPartList = new ArrayList<MultiPart>();
+		}
+		multiPartList.add(new MultiPart(name, filename, contentType, content));
 		// TODO support array
 		return this;
 	}
 	
-	private void setHeaderCallback(final Map<String, String> resultMap) {
+	private final Pattern STATUS_PATTERN = Pattern.compile("HTTP/\\d+\\.\\d+\\s+(\\d+)\\s+");
+	
+	private void setHeaderCallback(final Map<String, String> resultMap, final AtomicInteger status, final StringBuffer statusLine) {
 		curl.curlEasySetopt(OptFunctionPoint.CURLOPT_HEADERFUNCTION, new WriteCallback() {
 			
 			@Override
 			public int readData(byte[] data) {
+				if (data == null) {
+					return 0;
+				}
 				String header = new String(data);
-				String[] nameAndValue = StringUtils.split(header, ":", 2);
-				if (nameAndValue.length == 2) {
-					resultMap.put(nameAndValue[0].trim(), nameAndValue[1].trim());
+				if (!StringUtils.isBlank(header)) {
+					String[] nameAndValue = StringUtils.split(header, ":", 2);
+					if (nameAndValue.length == 2) {
+						resultMap.put(nameAndValue[0].trim(), nameAndValue[1].trim());
+					} else if (nameAndValue.length == 1) {
+						Log.i(TAG, "header: " + nameAndValue[0]);
+						Matcher m = STATUS_PATTERN.matcher(nameAndValue[0]);
+						if (m.find()) {
+							int code = Integer.valueOf(m.group(1));
+							if (code != 100) {
+								// HTTP/1.1 100 Continue
+								status.set(code);
+								statusLine.append(nameAndValue[0]);
+							}
+						}
+					}
 				}
 				return data.length;
 			}
@@ -204,23 +229,25 @@ public class CurlHttp {
 	}
 	
 	public Result perform() throws CurlException {
-		// TODO
 		// - populate headers
 		setRequestHeaders();
 		
-		// - do request
+		// - populate params
+		// - set post data (if needed)
 		@SuppressWarnings("unchecked")
 		Map<String, String> resultHeaderMap = new CaseInsensitiveMap<String, String>();
 		ByteArrayOutputStream bodyOs = new ByteArrayOutputStream();
 
-		setHeaderCallback(resultHeaderMap);
+		AtomicInteger status = new AtomicInteger();
+		StringBuffer statusLine = new StringBuffer();
+		setHeaderCallback(resultHeaderMap, status, statusLine);
 		setBodyCallback(bodyOs);
 		
 		if (isPost()) {
-			// POST
 			setPostParams();
 		}
 		
+		// - do request
 		try {
 			CurlCode code = curl.curlEasyPerform();
 			if (code != CurlCode.CURLE_OK) {
@@ -231,30 +258,23 @@ public class CurlHttp {
 				Log.d(TAG, "Header: " + entry.getKey() + ": " + entry.getValue()) ;
 			}
 			
-			// - post data (if needed)
 			// - read response
 		
-			// TODO parse result code from headers
-			return new Result(200, resultHeaderMap, bodyOs.toByteArray());
+			// parse result code from headers
+			return new Result(status.get(), statusLine.toString(), resultHeaderMap, bodyOs.toByteArray());
 		} finally {
 			curl.curlEasyCleanup();
 		}
 	}
 
 	private void setRequestHeaders() {
-		if (isPost()) {
-			if (isMultipart()) {
-				addHeader("Content-Type", "multipart/form-data");
-			} else {				
-				addHeader("Content-Type", "application/x-www-form-urlencoded");
-			}
-		}
 		List<String> headers = new ArrayList<String>(headerMap.size());
 		for (Entry<String, String> entry : headerMap.entrySet()) {
 			String value = entry.getValue();
 			if (value == null) {
 				value = "";
 			}
+			Log.d(TAG, "header: " + entry.getKey() + " => " + value);
 			headers.add(entry.getKey() + ": " + value);
 		}
 		Log.d(TAG, "add hreader: " + headers.size());
@@ -262,7 +282,7 @@ public class CurlHttp {
 	}
 
 	private boolean isMultipart() {
-		return multiPartMap != null && multiPartMap.size() > 0;
+		return multiPartList != null && multiPartList.size() > 0;
 	}
 
 	private boolean isPost() {
@@ -314,6 +334,38 @@ public class CurlHttp {
 					}
 					
 					curl.curlEasySetopt(OptObjectPoint.CURLOPT_POSTFIELDS, body.toString());
+				}
+			} else {
+				// multipart
+				List<MultiPart> finalList = new ArrayList<MultiPart>();
+				Set<String> names = new HashSet<String>();
+				if (postFieldMap != null && postFieldMap.size() > 0) {
+					for (Entry<String, Object> map : postFieldMap.entrySet()) {
+						String name = map.getKey();
+						Object value = map.getValue();
+						if (value instanceof List || names.contains(name)) {
+							throw new IllegalStateException("multipart form not support array field: " + name);
+						}
+						finalList.add(new MultiPart(name, null, null, ((String)value).getBytes()));
+						names.add(name);
+					}
+				}
+				if (multiPartList != null && multiPartList.size() > 0) {
+					for (MultiPart part : multiPartList) {
+						String name = part.getName();
+						if (names.contains(name)) {
+							throw new IllegalStateException("multipart form not support array field: " + name);
+						}
+						finalList.add(part);
+						names.add(name);
+					}
+				}
+				
+				
+				Log.d(TAG, "Set MultiPart data: " + finalList.size());
+				CurlFormadd result = curl.setFormdata(finalList);
+				if (result != CurlFormadd.CURL_FORMADD_OK) {
+					throw new RuntimeException("set formdata fail: " + result);
 				}
 			}
 		} catch (UnsupportedEncodingException e) {

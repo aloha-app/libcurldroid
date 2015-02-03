@@ -6,12 +6,14 @@ my $file = 'shared/curl/include/curl/curl.h';
 my $file_java = '../src/com/wealoha/libcurldroid/CurlConstant.java';
 my $file_code = '../src/com/wealoha/libcurldroid/CurlCode.java';
 my $file_opt = '../src/com/wealoha/libcurldroid/CurlOpt.java';
+my $file_formadd = '../src/com/wealoha/libcurldroid/CurlFormadd.java';
 
 
 open FH, $file or die "File not found: $file $!";
 open OUT, '>', $file_java or die $!;
 open OUT_CODE, '>', $file_code or die $!;
 open OUT_OPT, '>', $file_opt or die $!;
+open OUT_FORM, '>', $file_formadd or die $!;
 
 print OUT qq{// Auto generated from 'curl/curl.h', DO NOT EDIT!!!
 package com.wealoha.libcurldroid;
@@ -44,6 +46,12 @@ import android.util.SparseArray;
 public interface CurlOpt {    
 );
 
+print OUT_FORM qq(// Auto generated from 'curl/curl.h', DO NOT EDIT!!!
+package com.wealoha.libcurldroid;
+import android.util.SparseArray;
+
+public enum CurlFormadd {    
+);
 
 
 my $init = "";
@@ -53,6 +61,9 @@ my $curl_code_block = 0;
 
 # CurlOpt.java
 my $curl_opts = {};
+
+# CurlFormadd.java
+my $curl_form_block = 0;
 
 while (<FH>) {
     
@@ -88,6 +99,18 @@ while (<FH>) {
     	$curl_code_block++;
     } elsif ($curl_code_block && m{CURL_LAST}xmsi) {
     	$curl_code_block = 0;
+    } elsif (m{^\s{0,8}(CURL_FORMADD_OK),}xmsi) {
+        # CURL_FORMADD_OK = 0,
+        my ($name) = $1;
+        $curl_form_block = 0;
+        print OUT_FORM "    $name($curl_form_block), //\n";
+        $curl_form_block++;
+    } elsif ($curl_form_block && m{^\s{0,8}(CURL_FORMADD\w+?),}xmsi) {
+        my ($name) = $1;
+        print OUT_FORM "    $name($curl_form_block), //\n";
+        $curl_form_block++;
+    } elsif ($curl_form_block && m{CURL_FOMRADD_LAST}xmsi) {
+        $curl_form_block = 0;
     } elsif (m{\#define\s+(CURL_GLOBAL_\w+)\s+\(?([^\)]+)\)?}xmsi) {
     	# #define CURL_GLOBAL_SSL (1<<0)
     	my ($name, $value) = ($1, $2);
@@ -109,6 +132,10 @@ $init
 print OUT_CODE "    ;\n";
 print OUT_CODE get_enum_stuff('CurlCode');
 print OUT_CODE "}";
+
+print OUT_FORM "    ;\n";
+print OUT_FORM get_enum_stuff('CurlFormadd');
+print OUT_FORM "}";
 
 my $enum_body_object_point = get_enum_stuff('OptObjectPoint');
 my $enum_body_long = get_enum_stuff('OptLong');

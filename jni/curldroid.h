@@ -73,6 +73,14 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasySetoptObjectPo
 
 /*
  * Class:     com_wealoha_libcurldroid_Curl
+ * Method:    setFormdataNative
+ * Signature: (J[Lcom/wealoha/libcurldroid/easy/MultiPart;)I
+ */
+JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_setFormdataNative
+  (JNIEnv *, jobject, jlong, jobjectArray);
+
+/*
+ * Class:     com_wealoha_libcurldroid_Curl
  * Method:    curlEasyPerformNavite
  * Signature: (J)I
  */

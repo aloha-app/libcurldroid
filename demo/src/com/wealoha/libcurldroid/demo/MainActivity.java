@@ -1,5 +1,7 @@
 package com.wealoha.libcurldroid.demo;
 
+import java.util.Map.Entry;
+
 import android.app.Activity;
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
@@ -120,8 +122,19 @@ public class MainActivity extends Activity {
 					.postUrl("http://aaba.me/cgi-bin/t.cgi") //
 					.addPostParam("hello", "World!") //
 					.addPostParam("foo", "Bar!") //
+					.addPostParam("multi_a", null, null, "aaaa".getBytes()) //
+					.addPostParam("multi_b", null, "text/html", "b".getBytes()) //
+					.addPostParam("multi_c", "c.html", null, "cccccccccc".getBytes()) //
+					.addPostParam("multi_d", "d.html", "text/plain", "no html".getBytes()) //
+					.addPostParam("multi_e", "e.html", "text/plain", "你好github".getBytes()) //
 					.perform();
+			debug("status " + result.getStatus() + " " + result.getStatusLine() + "\n");
 			Log.d(TAG, "Body:" + result.getBodyAsString());
+			debug("\n=========headers==========\n");
+			for (Entry<String, String> header : result.getHeaders().entrySet()) {
+				debug("Heder: " + header.getKey() + ": " + header.getValue() + "\n");				
+			}
+			debug("\n\n=========body==========\n");
 			debug(result.getBodyAsString());
 		} catch (Exception e) {
 			Log.w(TAG, "Exception", e);
