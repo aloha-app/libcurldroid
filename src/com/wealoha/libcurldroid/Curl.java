@@ -1,8 +1,6 @@
 package com.wealoha.libcurldroid;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import android.util.Log;
 
@@ -10,7 +8,6 @@ import com.wealoha.libcurldroid.CurlOpt.OptFunctionPoint;
 import com.wealoha.libcurldroid.CurlOpt.OptLong;
 import com.wealoha.libcurldroid.CurlOpt.OptObjectPoint;
 import com.wealoha.libcurldroid.easy.MultiPart;
-import com.wealoha.libcurldroid.easy.NameValuePart;
 
 /**
  * Curl Jni Wrapper</br>
