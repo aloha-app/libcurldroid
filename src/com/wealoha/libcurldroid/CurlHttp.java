@@ -43,6 +43,9 @@ public class CurlHttp {
 	private Boolean get;
 	private boolean followLocation = true;
 	private int maxRedirects = 3;
+	private boolean useSystemProxy = true;
+	private String proxyHost;
+	private int proxyPort;
 	
 	private CurlHttp() {
 		curl = new Curl();
@@ -140,9 +143,18 @@ public class CurlHttp {
 	 * @return
 	 */
 	public CurlHttp setHttpProxy(String host, int port) {
-		Log.d(TAG, "Set http proxy: http://" + host+":"+port);
-		curl.curlEasySetopt(OptObjectPoint.CURLOPT_PROXY, "http://" + host);
-		curl.curlEasySetopt(OptLong.CURLOPT_PROXYPORT, port);
+		this.proxyHost = host;
+		this.proxyPort = port;
+		return this;
+	}
+	
+	/**
+	 * Using system proxy
+	 * @param yes default yes
+	 * @return
+	 */
+	public CurlHttp useSystemProxy(boolean yes) {
+		this.useSystemProxy = yes;
 		return this;
 	}
 	
@@ -292,6 +304,9 @@ public class CurlHttp {
 			curl.curlEasySetopt(OptLong.CURLOPT_MAXREDIRS, maxRedirects);
 		}
 		
+		// proxy
+		setProxy();
+		
 		// - do request
 		try {
 			CurlCode code = curl.curlEasyPerform();
@@ -415,6 +430,21 @@ public class CurlHttp {
 			}
 		} catch (UnsupportedEncodingException e) {
 			throw new RuntimeException("encode fail", e);
+		}
+	}
+	
+	private void setProxy() {
+		if (useSystemProxy && proxyHost == null) {
+			proxyHost = System.getProperty("http.proxyHost");
+			String proxyPortStr = System.getProperty("http.proxyPort");
+			if (proxyPortStr != null) {
+				proxyPort = Integer.valueOf(proxyPortStr);
+			}
+		}
+		if (proxyHost != null) {
+			Log.d(TAG, "Set http proxy: " + proxyHost + ":" + proxyPort);
+			curl.curlEasySetopt(OptObjectPoint.CURLOPT_PROXY, proxyHost);
+			curl.curlEasySetopt(OptLong.CURLOPT_PROXYPORT, proxyPort);
 		}
 	}
 }
