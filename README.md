@@ -3,9 +3,11 @@ libcurldroid
 
 Java JNI Wrapper for libcurl
 
-* [ ] easy of use
-* [ ] type safe Java interfaces
-* [ ] native .so libs for arch arm, armv7, mips and x86
+* [x] easy of use
+* [x] type safe Java interfaces
+* [ ] HTTP and HTTPS request
+* [ ] proxy using http, socks5
+* [x] native prebuild .so libs for arch arm, armv7, and x86
 * [x] custom build instructions
 * [x] minSdkVersion 8
 * [x] jdk 1.6

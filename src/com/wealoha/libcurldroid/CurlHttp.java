@@ -41,6 +41,8 @@ public class CurlHttp {
 	private Map<String, Object> postFieldMap;
 	private List<MultiPart> multiPartList;
 	private Boolean get;
+	private boolean followLocation = true;
+	private int maxRedirects = 3;
 	
 	private CurlHttp() {
 		curl = new Curl();
@@ -105,6 +107,42 @@ public class CurlHttp {
 	 */
 	public CurlHttp setProxy(String proxy) {
 		curl.curlEasySetopt(OptObjectPoint.CURLOPT_PROXY, proxy);
+		return this;
+	}
+	
+	/**
+	 * Auto redirect 301/302 request
+	 * 
+	 * @param follow default true
+	 * @return
+	 */
+	public CurlHttp setFollowLocation(boolean follow) {
+		followLocation = follow;
+		return this;
+	}
+	/**
+	 * 
+	 * @param max Setting the limit to 0 will make libcurl refuse any redirect. 
+	 * 			  Set it to -1 for an infinite number of redirects.
+	 * 			  Default 3
+	 * @return
+	 */
+	public CurlHttp setMaxRedirects(int max) {
+		maxRedirects = max;
+		return this;
+	}
+	
+	/**
+	 * set http proxy
+	 * 
+	 * @param host
+	 * @param port
+	 * @return
+	 */
+	public CurlHttp setHttpProxy(String host, int port) {
+		Log.d(TAG, "Set http proxy: http://" + host+":"+port);
+		curl.curlEasySetopt(OptObjectPoint.CURLOPT_PROXY, "http://" + host);
+		curl.curlEasySetopt(OptLong.CURLOPT_PROXYPORT, port);
 		return this;
 	}
 	
@@ -245,6 +283,13 @@ public class CurlHttp {
 		
 		if (isPost()) {
 			setPostParams();
+		}
+		
+		// follow
+		curl.curlEasySetopt(OptLong.CURLOPT_FOLLOWLOCATION, followLocation ? 1 : 0);
+		if (followLocation) {
+			Log.d(TAG, "set FOLLOWLOCATION: " + maxRedirects);
+			curl.curlEasySetopt(OptLong.CURLOPT_MAXREDIRS, maxRedirects);
 		}
 		
 		// - do request

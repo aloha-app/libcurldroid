@@ -27,6 +27,7 @@ proguard/
 
 ##
 jni/shared/curl
+jni/shared/c-ares
 .settings
 .classpath
 .project
