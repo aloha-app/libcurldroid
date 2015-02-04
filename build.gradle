@@ -1,0 +1,76 @@
+// http://www.vogella.com/tutorials/AndroidBuild/article.html
+// http://tools.android.com/tech-docs/new-build-system/user-guide
+// Using gradle 1.12
+// gradle assembleRelease
+buildscript {
+    repositories {
+    	mavenLocal()
+//    	maven {
+//            credentials {
+//                username 'your username'
+//                password 'your password'
+//            }
+//            url 'your maven repo'
+//        }
+        mavenCentral()
+    }
+
+    dependencies {
+		// gradle 
+		classpath 'com.android.tools.build:gradle:0.11.1'
+    }
+}
+
+repositories {
+    mavenLocal()
+//      maven {
+//            credentials {
+//                username 'your username'
+//                password 'your password'
+//            }
+//            url 'your maven repo'
+//        }
+    mavenCentral()
+}
+
+// compile aar
+apply plugin: 'android-library'
+
+
+configurations {
+    all*.exclude group: 'com.google.android', module: 'android'
+    all*.exclude group: 'com.google.android', module: 'support-v4'
+}
+
+dependencies {
+	// local libs dir
+    // compile files('libs/nothing.jar')
+}
+
+android {
+    compileSdkVersion 19
+    buildToolsVersion '19.1.0'
+
+    defaultConfig {
+        minSdkVersion 8
+        targetSdkVersion 19
+        versionCode 1
+        versionName '0.1.0'
+    }
+    
+     sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            java.srcDirs = ['src']
+            resources.srcDirs = ['src']
+            aidl.srcDirs = ['src']
+            renderscript.srcDirs = ['src']
+            res.srcDirs = ['res']
+            assets.srcDirs = ['assets']
+            jniLibs.srcDirs = ['libs']
+        }
+
+        instrumentTest.setRoot('tests')
+    }
+} 
+
