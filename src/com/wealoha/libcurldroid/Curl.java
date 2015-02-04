@@ -92,7 +92,7 @@ public class Curl {
 		Log.v(TAG, "curlEastInit");
 		handle = curlEasyInitNative();
 		if (handle == 0) {
-			throw new CurlException();
+			throw new CurlException("curl init native fail");
 		}
 	}
 	

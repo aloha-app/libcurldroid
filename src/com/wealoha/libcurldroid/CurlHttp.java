@@ -180,7 +180,7 @@ public class CurlHttp {
 		return this;
 	}
 	
-	public CurlHttp addPostParam(String key, String value) {
+	public CurlHttp addParam(String key, String value) {
 		if (postFieldMap == null) {
 			postFieldMap = new HashMap<String, Object>();
 		}
@@ -194,7 +194,7 @@ public class CurlHttp {
 	 * @param values
 	 * @return
 	 */
-	public CurlHttp addPostParam(String name, List<String> values) {
+	public CurlHttp addParam(String name, List<String> values) {
 		if (postFieldMap == null) {
 			postFieldMap = new HashMap<String, Object>();
 		}
@@ -203,7 +203,7 @@ public class CurlHttp {
 	}
 	
 	/**
-	 * add multipart form field
+	 * add multipart form field(post only)
 	 * 
 	 * @param name required
 	 * @param filename if null, "file.dat" will be used
@@ -211,7 +211,7 @@ public class CurlHttp {
 	 * @param content required
 	 * @return
 	 */
-	public CurlHttp addPostParam(String name, String filename, String contentType, byte[] content) {
+	public CurlHttp addMultiPartPostParam(String name, String filename, String contentType, byte[] content) {
 		if (StringUtils.isBlank(name)) {
 			throw new IllegalArgumentException("name is required");
 		}
@@ -294,6 +294,7 @@ public class CurlHttp {
 		setBodyCallback(bodyOs);
 		
 		if (isPost()) {
+			// TODO support get
 			setPostParams();
 		}
 		

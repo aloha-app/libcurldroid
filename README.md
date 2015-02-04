@@ -17,7 +17,29 @@ Java JNI Wrapper for libcurl
 API
 ----
 
-to be done..
+```java
+Result result = CurlHttp.newInstance() //
+    .setIpResolveV4() //
+    .addHeader("Accept-Encoding", "gzip, deflate, sdch") //
+    .setHttpProxy("10.0.1.2", 8888) //
+    .addParam("hello", "World!") //
+    // passing array like jQuery
+    .addParam("foo[]", Arrays.asList("Bar!", "Bar!")) //
+    // multipart form not support array
+    .addMultiPartPostParam("multi_a", null, null, bytes) //
+    .addMultiPartPostParam("multi_b", null, "text/html", bytes) //
+    .addMultiPartPostParam("multi_c", "c.html", null, bytes) //
+    .addMultiPartPostParam("multi_d", "d.html", "text/plain", bytes) //
+    .postUrl("http://some-url/cgi-bin/t.cgi") // or .getUrl(String url)
+    .perform();
+    
+int status = result.getStatus();
+String statusLine = result.getStatusLine();
+String body = result.getBodyAsString();
+byte[] binaryData = result.getBody();
+String header = result.getHeader("ContentType"); // ignore header name case
+Map<String, String> headers : result.getHeaders();
+```
 
 Build
 ------

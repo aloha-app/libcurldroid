@@ -119,17 +119,21 @@ public class MainActivity extends Activity {
 					.setIpResolveV4() //
 					.addHeader("Accept-Encoding", "gzip, deflate, sdch") //
 					//.setProxy("socks5h://192.168.9.104:8888") //
+					.setHttpProxy("10.0.1.2", 8888) //
+					.addParam("hello", "World!") //
+					.addParam("foo", "Bar!") //
+					.addMultiPartPostParam("multi_a", null, null, "aaaa".getBytes()) //
+					.addMultiPartPostParam("multi_b", null, "text/html", "b".getBytes()) //
+					.addMultiPartPostParam("multi_c", "c.html", null, "cccccccccc".getBytes()) //
+					.addMultiPartPostParam("multi_d", "d.html", "text/plain", "no html".getBytes()) //
+					.addMultiPartPostParam("multi_e", "e.html", "text/plain", "你好github".getBytes()) //
 					.postUrl("http://aaba.me/cgi-bin/t.cgi") //
-					.addPostParam("hello", "World!") //
-					.addPostParam("foo", "Bar!") //
-					.addPostParam("multi_a", null, null, "aaaa".getBytes()) //
-					.addPostParam("multi_b", null, "text/html", "b".getBytes()) //
-					.addPostParam("multi_c", "c.html", null, "cccccccccc".getBytes()) //
-					.addPostParam("multi_d", "d.html", "text/plain", "no html".getBytes()) //
-					.addPostParam("multi_e", "e.html", "text/plain", "你好github".getBytes()) //
 					.perform();
 			debug("status " + result.getStatus() + " " + result.getStatusLine() + "\n");
 			Log.d(TAG, "Body:" + result.getBodyAsString());
+			byte[] binaryData = result.getBody();
+//			String header = result.getHeader("ContentType");
+			
 			debug("\n=========headers==========\n");
 			for (Entry<String, String> header : result.getHeaders().entrySet()) {
 				debug("Heder: " + header.getKey() + ": " + header.getValue() + "\n");				
