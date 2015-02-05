@@ -133,7 +133,15 @@ public class Curl {
 		return CurlCode.fromValue(curlEasySetoptObjectPointNative(handle, opt.getValue(), value));
 	}
 	
+	
 	private native int curlEasySetoptObjectPointNative(long handle, int opt, String value);
+	
+	public CurlCode curlEasySetopt(OptObjectPoint opt, byte[] value) {
+		Log.v(TAG, "curlEastSetopt: " + opt + "=" + value);
+		return CurlCode.fromValue(curlEasySetoptObjectPointBytesNative(handle, opt.getValue(), value));
+	}
+	
+	private native int curlEasySetoptObjectPointBytesNative(long handle, int opt, byte[] value);
 	
 	public CurlCode curlEasySetopt(OptObjectPoint opt, String[] values) {
 		Log.v(TAG, "curlEastSetopt: " + opt + "=" + values);

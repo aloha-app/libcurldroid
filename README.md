@@ -41,6 +41,27 @@ String header = result.getHeader("ContentType"); // ignore header name case
 Map<String, String> headers : result.getHeaders();
 ```
 
+Retrofit
+---------
+
+```java
+    RestAdapter adapter = new RestAdapter.Builder() //
+        .setClient(new RetrofitCurlClient(new CurlHttpCustomizeCallback() {
+
+            @Override
+            public void setCurlOptions(CurlHttp curlHttp) {
+                curlHttp.setTimeoutMillis(1000 * 180);
+                curlHttp.setConnectionTimeoutMillis(1000 * 10);
+                curlHttp.addHeader("Accept-Encoding", "gzip");
+            }
+        })) //
+        .setEndpoint("http://api.xxx.com/") //
+        .setRequestInterceptor(requestInterceptor) //
+        .setLogLevel(RestAdapter.LogLevel.BASIC) //
+        .setErrorHandler(errorHandler) //
+        .setConverter(gsonConvertor).build();
+```
+
 Build
 ------
 

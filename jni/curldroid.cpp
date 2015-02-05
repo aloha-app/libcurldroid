@@ -343,6 +343,35 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasySetoptObjectPo
     return result;
 }
 
+JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasySetoptObjectPointBytesNative
+  (JNIEnv * env, jobject obj, jlong handle, jint opt, jbyteArray bytes) {
+	int result;
+	Holder* holder = (Holder*) handle;
+	CURL * curl = holder->getCurl();
+
+	jbyte* str = env->GetByteArrayElements(bytes, JNI_FALSE);
+	int content_length = env->GetArrayLength(bytes);
+
+	if (str == NULL) {
+	   return 0;
+	}
+
+	result = (int) curl_easy_setopt(curl, (CURLoption) opt, str);
+	switch(opt) {
+	case CURLOPT_POSTFIELDS:
+		// this field not copy data
+		// see http://curl.haxx.se/libcurl/c/CURLOPT_POSTFIELDS.html
+		// release after perform
+		holder->addByteArrayGlobalRefs(env->NewGlobalRef(bytes), (const char*)str);
+		break;
+	default:
+		// free
+		env->ReleaseByteArrayElements(bytes, str, 0);
+	}
+
+	return result;
+}
+
 JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasySetoptObjectPointArrayNative
   (JNIEnv *env, jobject obj, jlong handle, jint opt, jobjectArray values) {
     Holder* holder = (Holder*) handle;
@@ -397,7 +426,8 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_setFormdataNative
             jbyteArray content = (jbyteArray) env->CallObjectMethod(part, MID_MultiPart_get_content);
             jbyte* bytes = env->GetByteArrayElements(content, 0);
             int content_length = env->GetArrayLength(content);
-            holder->addGlobalRefs(env->NewGlobalRef(content)); // release after perform
+
+            holder->addByteArrayGlobalRefs(env->NewGlobalRef(content), (const char*)bytes); // release after perform
 
             const char* name_str = env->GetStringUTFChars(name, 0);
 

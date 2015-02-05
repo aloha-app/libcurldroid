@@ -45,6 +45,8 @@ configurations {
 dependencies {
 	// local libs dir
     // compile files('libs/nothing.jar')
+    compile 'com.squareup.retrofit:retrofit:1.7.1'
+    compile 'com.squareup.picasso:picasso:2.4.0'
 }
 
 android {

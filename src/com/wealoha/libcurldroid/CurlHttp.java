@@ -40,12 +40,15 @@ public class CurlHttp {
 	private Map<String, String> headerMap;
 	private Map<String, Object> postFieldMap;
 	private List<MultiPart> multiPartList;
+	private byte[] body;
+	private String bodyType;
 	private Boolean get;
 	private boolean followLocation = true;
 	private int maxRedirects = 3;
 	private boolean useSystemProxy = true;
 	private String proxyHost;
 	private int proxyPort;
+
 	
 	private CurlHttp() {
 		curl = new Curl();
@@ -226,6 +229,13 @@ public class CurlHttp {
 		return this;
 	}
 	
+	public CurlHttp setBody(String mimeType, byte[] data) {
+		// TODO
+		this.bodyType = mimeType;
+		this.body = data;
+		return this;
+	}
+	
 	private final Pattern STATUS_PATTERN = Pattern.compile("HTTP/\\d+\\.\\d+\\s+(\\d+)\\s+");
 	
 	private void setHeaderCallback(final Map<String, String> resultMap, final AtomicInteger status, final StringBuffer statusLine) {
@@ -295,7 +305,16 @@ public class CurlHttp {
 		
 		if (isPost()) {
 			// TODO support get
-			setPostParams();
+			if (body != null) {
+				// user provided body
+				// TODO check params and warn
+				// TODO set content type
+				curl.curlEasySetopt(OptLong.CURLOPT_POSTFIELDSIZE, body.length);
+				curl.curlEasySetopt(OptObjectPoint.CURLOPT_POSTFIELDS, body);
+			} else {
+				// body populate from params
+				setPostParams();
+			}
 		}
 		
 		// follow
@@ -394,6 +413,7 @@ public class CurlHttp {
 						}
 					}
 					
+					// encoded string, doesn't need to set CURLOPT_POSTFIELDSIZE
 					curl.curlEasySetopt(OptObjectPoint.CURLOPT_POSTFIELDS, body.toString());
 				}
 			} else {

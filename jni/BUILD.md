@@ -77,7 +77,7 @@ Important: fix_libtool.sh is a REQUIRED step. Android has problems with soname l
 Build wrapper
 --------------
 
-    build_jni.sh
+    ./build_jni.sh
 
 Reference
 =========

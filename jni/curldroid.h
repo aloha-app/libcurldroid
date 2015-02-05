@@ -65,6 +65,14 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasySetoptObjectPo
 
 /*
  * Class:     com_wealoha_libcurldroid_Curl
+ * Method:    curlEasySetoptObjectPointBytesNative
+ * Signature: (JI[B)I
+ */
+JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasySetoptObjectPointBytesNative
+  (JNIEnv *, jobject, jlong, jint, jbyteArray);
+
+/*
+ * Class:     com_wealoha_libcurldroid_Curl
  * Method:    curlEasySetoptObjectPointArrayNative
  * Signature: (JI[Ljava/lang/String;)I
  */
