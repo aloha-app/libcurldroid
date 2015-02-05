@@ -80,7 +80,7 @@ public class RetrofitCurlClient implements Client {
 	
 	private Response convertResult(Request request, Result result) throws IOException {
 		Map<String, String> headerMap = result.getHeaders();
-		TypedInput input = new TypedByteArray(headerMap.get("Content-Type"), result.getBody());
+		TypedInput input = new TypedByteArray(headerMap.get("Content-Type"), result.getDecodedBody());
 		List<Header> headers = new ArrayList<Header>(headerMap.size());
 		for (Entry<String, String> entry : headerMap.entrySet()) {
 			headers.add(new Header(entry.getKey(), entry.getValue()));
