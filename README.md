@@ -1,7 +1,7 @@
 libcurldroid
 =============
 
-Java JNI Wrapper for libcurl
+Android Java JNI Wrapper for libcurl
 
 Delegate all HTTP transport to [libcurl](http://curl.haxx.se/libcurl/), through [Picasso](https://github.com/square/picasso) to [Retrofit](https://github.com/square/retrofit), or using our simple fluent style api. Bypassing Android java HTTP bugs.
 
