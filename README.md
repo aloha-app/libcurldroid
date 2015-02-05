@@ -3,6 +3,8 @@ libcurldroid
 
 Java JNI Wrapper for libcurl
 
+Delegate all HTTP transport to [libcurl](http://curl.haxx.se/libcurl/), through [Picasso](https://github.com/square/picasso) to [Retrofit](https://github.com/square/retrofit), or using our simple fluent style api. Bypassing Android java HTTP bugs.
+
 * [x] easy of use
 * [x] type safe Java interfaces
 * [ ] HTTP and HTTPS request
@@ -14,7 +16,7 @@ Java JNI Wrapper for libcurl
 * [x] jdk 1.6
 
 
-API
+API (may be change before 1.0.0 formal release)
 ----
 
 ```java
@@ -69,6 +71,16 @@ Provided binary libcares and libcurl comes with default configure options.
 You can build with your custom configure options.
 
 Full build instructions here: https://github.com/aloha-app/libcurldroid/blob/master/jni/BUILD.md , may be the shortest(and easiest) document on the net:] 
+
+FAQ
+-----
+
+1. If you use Eclipse, reference libcurldroid as library, you may encounter this:
+
+    [2015-02-05 16:34:30 - Dex Loader] Unable to execute dex: Multiple dex files define Lcom/squareup/picasso/Action$RequestWeakReference;
+    [2015-02-05 16:34:30 - your-project] Conversion to Dalvik format failed: Unable to execute dex: Multiple dex files define Lcom/squareup/picasso/Action$RequestWeakReference;
+    
+Right click libcurldroid -> Properties -> Java Build Path -> Order and Export -> uncheck Android Private Libraries
 
 In the end
 -----
