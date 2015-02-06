@@ -56,24 +56,24 @@ Retrofit
 ---------
 
 ```java
-    RetrofitCurlClient client = new RetrofitCurlClient() //
-        .curlCalback(new CurlHttpCallback() {
-            
-            @Override
-            public void afterInit(CurlHttp curlHttp) {
-                curlHttp.setTimeoutMillis(1000 * 180);
-                curlHttp.setConnectionTimeoutMillis(1000 * 10);
-                curlHttp.addHeader("Accept-Encoding", "gzip");
-            }
-        });
+RetrofitCurlClient client = new RetrofitCurlClient() //
+    .curlCalback(new CurlHttpCallback() {
+        
+        @Override
+        public void afterInit(CurlHttp curlHttp) {
+            curlHttp.setTimeoutMillis(1000 * 180);
+            curlHttp.setConnectionTimeoutMillis(1000 * 10);
+            curlHttp.addHeader("Accept-Encoding", "gzip");
+        }
+    });
 
-    RestAdapter adapter = new RestAdapter.Builder() //
-        .setClient(client) //
-        .setEndpoint("http://api.xxx.com/") //
-        .setRequestInterceptor(requestInterceptor) //
-        .setLogLevel(RestAdapter.LogLevel.BASIC) //
-        .setErrorHandler(errorHandler) //
-        .setConverter(gsonConvertor).build();
+RestAdapter adapter = new RestAdapter.Builder() //
+    .setClient(client) //
+    .setEndpoint("http://api.xxx.com/") //
+    .setRequestInterceptor(requestInterceptor) //
+    .setLogLevel(RestAdapter.LogLevel.BASIC) //
+    .setErrorHandler(errorHandler) //
+    .setConverter(gsonConvertor).build();
 ```
 
 Picasso
