@@ -59,56 +59,53 @@ public class PicassoCurlDownloader implements Downloader {
 	@Override
 	public Response load(Uri path, boolean localCacheOnly) throws IOException {
 		String url = path.toString();
-		Log.v(Constant.TAG, "trying to load resources: " + url);
-		if (localCacheOnly) { // TODO
-			if (cache == null) {
-				Logger.d("no cache, just return: url=%s", url);
-				return null;
-			}
+		Logger.v("trying to load resources: url=%s, localCacheOnly=%s", url, localCacheOnly);
+
+		if (cache != null) {
+			Logger.d("load from cache, url=%s", url);
+
 			CacheFile cacheFile = cache.get(url);
 			if (cacheFile == null) {
 				Logger.d("cache miss: url=%s", url);
-				return null;
 			} else {
 				// TODO check expire date
 				Log.v(Constant.TAG, "get url from cache: " + url);
-				boolean returnCached = true;
-				if (cacheFile.getLastModifiedMillis() != null) {
-					// check 304, if unmodified
-					// If-Modified-Since
-					Log.v(Constant.TAG, "see if file modified: " + url);
-					String lastModified = formatHttpDate(new Date(cacheFile.getLastAccessMillis()));
-					CurlHttp curlHttp = CurlHttp.newInstance();
-					
-					// TODO init
-					Result result = curlHttp.addHeader("If-Modified-Since", lastModified) //
-						.getUrl(url) //
-						.perform();
-					
-					if (result.getStatus() == 304) {
-						Log.v(Constant.TAG, "file not modified, return cached: " + url);
-						returnCached = false;
-					} else if (result.getStatus() == 200) {
-						Log.v(Constant.TAG, "file modified, replace cached: " + url);
-						byte[] body = result.getDecodedBody();
-						cacheResult(url, result);
-						return new Response(new ByteArrayInputStream(body), false, body.length);
+				if (cacheFile.getExpireTimeMillis() < System.currentTimeMillis()) {
+					// file expired
+					Logger.d("seems file expired test lastModified: url=%s", url);
+					if (cacheFile.getLastModifiedMillis() != null) {
+						// check 304, if unmodified
+						// If-Modified-Since
+						Log.v(Constant.TAG, "see if file modified: " + url);
+						String lastModified = formatHttpDate(new Date(cacheFile.getLastAccessMillis()));
+						
+						Result result = getUrlManualDealRedirect(url, lastModified);
+						
+						if (result.getStatus() == 304) {
+							Log.v(Constant.TAG, "file not modified, return cached: " + url);
+						} else if (result.getStatus() == 200) {
+							Log.v(Constant.TAG, "file modified, replace cached: " + url);
+							byte[] body = result.getDecodedBody();
+							cacheResult(url, result);
+							return new Response(new ByteArrayInputStream(body), false, body.length);
+						}
 					}
 				}
-				if (returnCached) {
-					Log.d(Constant.TAG, "return cached url: " + url);
-					InputStream is = cache.getInputStream(cacheFile);
-					return new Response(is, true, cacheFile.getFileSize());
-				}
+				
+				Log.d(Constant.TAG, "return cached url: " + url);
+				InputStream is = cache.getInputStream(cacheFile);
+				return new Response(is, true, cacheFile.getFileSize());
 			}
-			return null;
-		} // end if localCacheOnly
+		} // end if cache test
 		
-		CurlHttp curlHttp = CurlHttp.newInstance();
+		Logger.d("cache miss: url=%s", url);
+		if (localCacheOnly) {
+			return null;
+		}
 		
 		// TODO init curl
 		Logger.d("get url: %s", url);
-		Result result = curlHttp.getUrl(url).perform();
+		Result result = getUrlManualDealRedirect(url, null);
 		
 		Log.v(Constant.TAG, "result: " + result.getStatusLine());
 		if (result.getStatus() == 200) {
@@ -118,6 +115,39 @@ public class PicassoCurlDownloader implements Downloader {
 		} else {
 			throw new IOException("load url fail: " + url + " " + result.getStatusLine());
 		}
+	}
+	
+	private Result getUrlManualDealRedirect(String url, String headerIfModifideSince) throws IOException {
+		boolean tryNext = false;
+		
+		Result result;
+		do {
+			CurlHttp curlHttp = CurlHttp.newInstance();
+			// TODO set curl
+			curlHttp.setFollowLocation(false);
+			if (headerIfModifideSince != null) {
+				curlHttp.addHeader("If-Modified-Since", headerIfModifideSince);
+			}
+			
+			result = curlHttp.getUrl(url).perform();
+			
+			if (result.getStatus() == 301 || result.getStatus() == 302) {
+				String nextUrl = result.getHeader("Location");
+				Logger.v("redirect for url: %s -> %s", url, nextUrl);
+				if (url.equals(nextUrl)) {
+					throw new IOException("redirect loop: url=" + url + ", Location=" + nextUrl);
+				}
+				if (StringUtils.isBlank(nextUrl)) {
+					throw new IOException("redirect response without Location header, url=" + nextUrl);
+				}
+				url = nextUrl;
+				tryNext = true;
+			} else {
+				tryNext = false;
+			}
+		} while (tryNext == true);
+		
+		return result;
 	}
 	
 	private void cacheResult(String url, Result result) throws IOException {

@@ -41,7 +41,6 @@ public class CurlHttp {
 	private Map<String, Object> postFieldMap;
 	private List<MultiPart> multiPartList;
 	private byte[] body;
-	private String bodyType;
 	private Boolean get;
 	private boolean followLocation = true;
 	private int maxRedirects = 3;
@@ -230,8 +229,7 @@ public class CurlHttp {
 	}
 	
 	public CurlHttp setBody(String mimeType, byte[] data) {
-		// TODO
-		this.bodyType = mimeType;
+		addHeader("Content-Type", mimeType);
 		this.body = data;
 		return this;
 	}
@@ -308,7 +306,6 @@ public class CurlHttp {
 			if (body != null) {
 				// user provided body
 				// TODO check params and warn
-				// TODO set content type
 				curl.curlEasySetopt(OptLong.CURLOPT_POSTFIELDSIZE, body.length);
 				curl.curlEasySetopt(OptObjectPoint.CURLOPT_POSTFIELDS, body);
 			} else {
