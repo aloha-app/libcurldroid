@@ -1,7 +1,6 @@
 package com.wealoha.libcurldroid.picasso;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.ParseException;
@@ -22,6 +21,7 @@ import com.wealoha.libcurldroid.Result;
 import com.wealoha.libcurldroid.cache.Cache;
 import com.wealoha.libcurldroid.cache.CacheFile;
 import com.wealoha.libcurldroid.cache.DiskCache;
+import com.wealoha.libcurldroid.third.CurlHttpCallback;
 import com.wealoha.libcurldroid.util.Logger;
 import com.wealoha.libcurldroid.util.StringUtils;
 
@@ -33,46 +33,58 @@ import com.wealoha.libcurldroid.util.StringUtils;
  */
 public class PicassoCurlDownloader implements Downloader {
 
+	private static final Logger logger = Logger.getLogger(PicassoCurlDownloader.class);
+	
 	private Cache cache;
 	
-	public interface CurlCustomizeCallback {
-		public void customize(CurlHttp curlHttp);
-	}
+	private CurlHttpCallback callback;
 	
 	/**
-	 * Default downloader without cache
+	 * Default downloader, if you need cache call setCache
 	 * @param for custom curl params
 	 */
-	public PicassoCurlDownloader(CurlCustomizeCallback callback) {
-		
+	public PicassoCurlDownloader() {
 	}
 	
 	/**
+	 * set curl init callback
 	 * 
-	 * @param callback for custom curl params
-	 * @param cacheDir cache files
+	 * @param callback
+	 * @return
 	 */
-	public PicassoCurlDownloader(CurlCustomizeCallback callback, File cacheDir) {
-		cache = new DiskCache(cacheDir);
+	public PicassoCurlDownloader curlCalback(CurlHttpCallback callback) {
+		this.callback = callback;
+		return this;
+	}
+	
+	/**
+	 * set cache, you can use {@link DiskCache}
+	 * 
+	 * @param cache
+	 * @return
+	 */
+	public PicassoCurlDownloader cache(Cache cache) {
+		this.cache = cache;
+		return this;
 	}
 	
 	@Override
 	public Response load(Uri path, boolean localCacheOnly) throws IOException {
 		String url = path.toString();
-		Logger.v("trying to load resources: url=%s, localCacheOnly=%s", url, localCacheOnly);
+		logger.v("trying to load resources: url=%s, localCacheOnly=%s", url, localCacheOnly);
 
 		if (cache != null) {
-			Logger.d("load from cache, url=%s", url);
+			logger.d("load from cache, url=%s", url);
 
 			CacheFile cacheFile = cache.get(url);
 			if (cacheFile == null) {
-				Logger.d("cache miss: url=%s", url);
+				logger.d("cache miss: url=%s", url);
 			} else {
 				// TODO check expire date
 				Log.v(Constant.TAG, "get url from cache: " + url);
 				if (cacheFile.getExpireTimeMillis() < System.currentTimeMillis()) {
 					// file expired
-					Logger.d("seems file expired test lastModified: url=%s", url);
+					logger.d("seems file expired test lastModified: url=%s", url);
 					if (cacheFile.getLastModifiedMillis() != null) {
 						// check 304, if unmodified
 						// If-Modified-Since
@@ -98,13 +110,13 @@ public class PicassoCurlDownloader implements Downloader {
 			}
 		} // end if cache test
 		
-		Logger.d("cache miss: url=%s", url);
+		logger.d("cache miss: url=%s", url);
 		if (localCacheOnly) {
 			return null;
 		}
 		
 		// TODO init curl
-		Logger.d("get url: %s", url);
+		logger.d("get url: %s", url);
 		Result result = getUrlManualDealRedirect(url, null);
 		
 		Log.v(Constant.TAG, "result: " + result.getStatusLine());
@@ -123,7 +135,11 @@ public class PicassoCurlDownloader implements Downloader {
 		Result result;
 		do {
 			CurlHttp curlHttp = CurlHttp.newInstance();
-			// TODO set curl
+			// set curl
+			if (callback != null) {
+				callback.afterInit(curlHttp);
+			}
+			
 			curlHttp.setFollowLocation(false);
 			if (headerIfModifideSince != null) {
 				curlHttp.addHeader("If-Modified-Since", headerIfModifideSince);
@@ -133,7 +149,7 @@ public class PicassoCurlDownloader implements Downloader {
 			
 			if (result.getStatus() == 301 || result.getStatus() == 302) {
 				String nextUrl = result.getHeader("Location");
-				Logger.v("redirect for url: %s -> %s", url, nextUrl);
+				logger.v("redirect for url: %s -> %s", url, nextUrl);
 				if (url.equals(nextUrl)) {
 					throw new IOException("redirect loop: url=" + url + ", Location=" + nextUrl);
 				}
@@ -151,7 +167,7 @@ public class PicassoCurlDownloader implements Downloader {
 	}
 	
 	private void cacheResult(String url, Result result) throws IOException {
-		Logger.d("cache url: %s", url);
+		logger.d("cache url: %s", url);
 		byte[] body = result.getBody();
 		// "If a response includes both an Expires header and a max-age directive, the max-age directive overrides the Expires header, even if the Expires header is more restrictive."
 		Date expireDate = parseHttpDate(result.getHeader("Expires"));
@@ -167,7 +183,7 @@ public class PicassoCurlDownloader implements Downloader {
 			expireDate = new Date(now.getTime() + maxAgeSeconds * 1000);
 		}
 		
-		Logger.v("expire date: url=%s, date=%s", url, expireDate);
+		logger.v("expire date: url=%s, date=%s", url, expireDate);
 		if (cache != null && expireDate != null && expireDate.after(now)) {
 			Log.v(Constant.TAG, "save date to cache: " + url);
 			cache.set(url, body, lastModified, expireDate);

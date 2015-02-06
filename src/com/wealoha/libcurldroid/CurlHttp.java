@@ -36,6 +36,8 @@ public class CurlHttp {
 
 	private static final String TAG = CurlHttp.class.getSimpleName();
 	
+	private static final Logger logger = Logger.getLogger(CurlHttp.class);
+	
 	private Curl curl;
 	private Map<String, String> headerMap;
 	private List<MultiPart> multiPartList;
@@ -247,6 +249,13 @@ public class CurlHttp {
 		return this;
 	}
 	
+	/**
+	 * set raw body to post(override {@link #addParam(String, List)} {@link #addParam(String, String)} and {@link #addMultiPartPostParam(String, String, String, byte[])})
+	 * 
+	 * @param mimeType
+	 * @param data
+	 * @return
+	 */
 	public CurlHttp setBody(String mimeType, byte[] data) {
 		addHeader("Content-Type", mimeType);
 		this.body = data;
@@ -340,7 +349,7 @@ public class CurlHttp {
 					url += "?" + params;
 				}
 				
-				Logger.v("contact params to url: %s", url);
+				logger.v("contact params to url: %s", url);
 			}
 		}
 		
@@ -461,7 +470,7 @@ public class CurlHttp {
 					body.append(name);
 					body.append("=");
 					body.append(value);
-					Logger.v("Append field: %s=%s", name, value);
+					logger.v("Append field: %s=%s", name, value);
 				} catch (UnsupportedEncodingException e) {
 					Log.w(TAG, "encode faile: name=" + pair.getName() + ", value=" + pair.getValue(), e);
 				}

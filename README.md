@@ -27,41 +27,84 @@ Result result = CurlHttp.newInstance() //
     .addParam("hello", "World!") //
     // passing array like jQuery
     .addParam("foo[]", Arrays.asList("Bar!", "Bar!")) //
-    // multipart form not support array
+    // multipart form(post only)
     .addMultiPartPostParam("multi_a", null, null, bytes) //
     .addMultiPartPostParam("multi_b", null, "text/html", bytes) //
     .addMultiPartPostParam("multi_c", "c.html", null, bytes) //
     .addMultiPartPostParam("multi_d", "d.html", "text/plain", bytes) //
-    .postUrl("http://some-url/cgi-bin/t.cgi") // or .getUrl(String url)
+    .postUrl("http://your-host/cgi-bin/t.cgi") // or .getUrl(String url)
     .perform();
     
 int status = result.getStatus();
 String statusLine = result.getStatusLine();
 String body = result.getBodyAsString();
 byte[] binaryData = result.getBody();
+byte[] binaryDecodedDate = result.getDecodedBody(); // if gzipped
 String header = result.getHeader("ContentType"); // ignore header name case
 Map<String, String> headers : result.getHeaders();
+
+
+// get with custom params
+Result result = CurlHttp.newInstance() //
+    .addParam("hello", "World!") //
+    .addParam("hello", "GitHub!") //
+    .addParam("foo", "Bar!") //
+    .getUrl("http://your-host/cgi-bin/t.cgi") //
 ```
 
 Retrofit
 ---------
 
 ```java
-    RestAdapter adapter = new RestAdapter.Builder() //
-        .setClient(new RetrofitCurlClient(new CurlHttpCustomizeCallback() {
-
+    RetrofitCurlClient client = new RetrofitCurlClient() //
+        .curlCalback(new CurlHttpCallback() {
+            
             @Override
-            public void setCurlOptions(CurlHttp curlHttp) {
+            public void afterInit(CurlHttp curlHttp) {
                 curlHttp.setTimeoutMillis(1000 * 180);
                 curlHttp.setConnectionTimeoutMillis(1000 * 10);
                 curlHttp.addHeader("Accept-Encoding", "gzip");
             }
-        })) //
+        });
+
+    RestAdapter adapter = new RestAdapter.Builder() //
+        .setClient(client) //
         .setEndpoint("http://api.xxx.com/") //
         .setRequestInterceptor(requestInterceptor) //
         .setLogLevel(RestAdapter.LogLevel.BASIC) //
         .setErrorHandler(errorHandler) //
         .setConverter(gsonConvertor).build();
+```
+
+Picasso
+---------
+
+```java
+File cacheDir = new File(Environment.getExternalStorageDirectory(), "libcurldroid"); 
+// external storage status needed to check
+
+// disk based LRU cache
+DiskCache cache = new DiskCache(cacheDir) //
+    .maxCacheSizeInBytes(256 * 1024 * 1024);
+    
+PicassoCurlDownloader downloader = new PicassoCurlDownloader() //
+    .cache(cache) //
+    .curlCalback(new CurlHttpCallback() {
+        
+        @Override
+        public void afterInit(CurlHttp curlHttp) {
+            curlHttp.setTimeoutMillis(1000 * 180);
+            curlHttp.setConnectionTimeoutMillis(1000 * 10);
+        }
+    });
+
+LruCache memoryCache = new LruCache((int) Runtime.getRuntime().maxMemory() / 5);
+Picasso picasso = new Picasso.Builder(this) //
+    .indicatorsEnabled(true) //
+    .loggingEnabled(true) //
+    .downloader(downloader) //
+    .memoryCache(memoryCache) //
+    .build();
 ```
 
 Build
@@ -85,3 +128,5 @@ Right click libcurldroid -> Properties -> Java Build Path -> Order and Export ->
 In the end
 -----
 Great thanks to curl-android project: https://github.com/liudongmiao/curl-android
+
+Daniel Stenberg and his [cURL](http://curl.haxx.se/libcurl/), without cURL this project will never exist!

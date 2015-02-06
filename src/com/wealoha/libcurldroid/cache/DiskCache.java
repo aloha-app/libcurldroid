@@ -54,7 +54,7 @@ public class DiskCache implements Cache {
 	 * @param size
 	 * @return
 	 */
-	public DiskCache  maxCacheSizeInBytes(int size) {
+	public DiskCache maxCacheSizeInBytes(int size) {
 		this.maxCacheSizeInBytes = size;
 		return this;
 	}

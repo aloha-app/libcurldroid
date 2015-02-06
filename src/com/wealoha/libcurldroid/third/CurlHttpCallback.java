@@ -8,7 +8,7 @@ import com.wealoha.libcurldroid.CurlHttp;
  * @author javamonk
  * @createTime 2015-02-05 16:48:31
  */
-public interface CurlHttpCustomizeCallback {
+public interface CurlHttpCallback {
 
 	/**
 	 * for set curl options
@@ -17,5 +17,5 @@ public interface CurlHttpCustomizeCallback {
 	 * 
 	 * @param curlHttp
 	 */
-	public void setCurlOptions(CurlHttp curlHttp);
+	public void afterInit(CurlHttp curlHttp);
 }

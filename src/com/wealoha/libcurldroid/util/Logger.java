@@ -1,7 +1,5 @@
 package com.wealoha.libcurldroid.util;
 
-import com.wealoha.libcurldroid.Constant;
-
 import android.util.Log;
 
 /**
@@ -12,67 +10,78 @@ import android.util.Log;
  */
 public class Logger {
 	
-	public static void v(String template) {
-		Log.v(Constant.TAG, template);
+	private final String tag;
+	
+	private Logger(String tag) {
+		this.tag = tag;
 	}
 	
-	public static void v(String template, Object arg1) {
-		Log.v(Constant.TAG, String.format(template, arg1));
+	@SuppressWarnings("rawtypes")
+	public static Logger getLogger(Class clazz) {
+		return new Logger("libcurldroid." + clazz.getSimpleName());
 	}
 	
-	public static void v(String template, Object arg1, String arg2) {
-		Log.v(Constant.TAG, String.format(template, arg1, arg2));
+	public void v(String template) {
+		Log.v(tag, template);
 	}
 	
-	public static void v(String template, Object... args) {
-		Log.v(Constant.TAG, String.format(template, args));
+	public void v(String template, Object arg1) {
+		Log.v(tag, String.format(template, arg1));
 	}
 	
-	public static void d(String template) {
-		Log.d(Constant.TAG, template);
+	public void v(String template, Object arg1, String arg2) {
+		Log.v(tag, String.format(template, arg1, arg2));
 	}
 	
-	public static void d(String template, Object arg1) {
-		Log.d(Constant.TAG, String.format(template, arg1));
+	public void v(String template, Object... args) {
+		Log.v(tag, String.format(template, args));
 	}
 	
-	public static void d(String template, Object arg1, String arg2) {
-		Log.d(Constant.TAG, String.format(template, arg1, arg2));
+	public void d(String template) {
+		Log.d(tag, template);
 	}
 	
-	public static void d(String template, Object... args) {
-		Log.d(Constant.TAG, String.format(template, args));
+	public void d(String template, Object arg1) {
+		Log.d(tag, String.format(template, arg1));
 	}
 	
-	public static void i(String template) {
-		Log.i(Constant.TAG, template);
+	public void d(String template, Object arg1, String arg2) {
+		Log.d(tag, String.format(template, arg1, arg2));
 	}
 	
-	public static void i(String template, Object arg1) {
-		Log.i(Constant.TAG, String.format(template, arg1));
+	public void d(String template, Object... args) {
+		Log.d(tag, String.format(template, args));
 	}
 	
-	public static void i(String template, Object arg1, String arg2) {
-		Log.i(Constant.TAG, String.format(template, arg1, arg2));
+	public void i(String template) {
+		Log.i(tag, template);
 	}
 	
-	public static void i(String template, Object... args) {
-		Log.i(Constant.TAG, String.format(template, args));
+	public void i(String template, Object arg1) {
+		Log.i(tag, String.format(template, arg1));
 	}
 	
-	public static void w(String template) {
-		Log.w(Constant.TAG, template);
+	public void i(String template, Object arg1, String arg2) {
+		Log.i(tag, String.format(template, arg1, arg2));
 	}
 	
-	public static void w(String template, Object arg1) {
-		Log.w(Constant.TAG, String.format(template, arg1));
+	public void i(String template, Object... args) {
+		Log.i(tag, String.format(template, args));
 	}
 	
-	public static void w(String template, Object arg1, String arg2) {
-		Log.w(Constant.TAG, String.format(template, arg1, arg2));
+	public void w(String template) {
+		Log.w(tag, template);
 	}
 	
-	public static void w(String template, Object... args) {
-		Log.w(Constant.TAG, String.format(template, args));
+	public void w(String template, Object arg1) {
+		Log.w(tag, String.format(template, arg1));
+	}
+	
+	public void w(String template, Object arg1, String arg2) {
+		Log.w(tag, String.format(template, arg1, arg2));
+	}
+	
+	public void w(String template, Object... args) {
+		Log.w(tag, String.format(template, args));
 	}
 }

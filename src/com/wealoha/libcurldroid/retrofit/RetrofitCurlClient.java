@@ -18,7 +18,7 @@ import android.util.Log;
 
 import com.wealoha.libcurldroid.CurlHttp;
 import com.wealoha.libcurldroid.Result;
-import com.wealoha.libcurldroid.third.CurlHttpCustomizeCallback;
+import com.wealoha.libcurldroid.third.CurlHttpCallback;
 
 /**
  * 
@@ -30,18 +30,14 @@ public class RetrofitCurlClient implements Client {
 
 	private static final String TAG = RetrofitCurlClient.class.getSimpleName();
 	
-	private final CurlHttpCustomizeCallback callback;
-	
-	/**
-	 * 
-	 * @param callback can be null
-	 */
-	public RetrofitCurlClient(CurlHttpCustomizeCallback callback) {
-		this.callback = callback;
+	private CurlHttpCallback callback;
+		
+	public RetrofitCurlClient() {
 	}
 	
-	public RetrofitCurlClient() {
-		this.callback = null;
+	public RetrofitCurlClient curlCalback(CurlHttpCallback callback) {
+		this.callback = callback;
+		return this;
 	}
 	
 	@Override
@@ -51,7 +47,7 @@ public class RetrofitCurlClient implements Client {
 		CurlHttp curlHttp = CurlHttp.newInstance();
 		
 		if (callback != null) {
-			callback.setCurlOptions(curlHttp);
+			callback.afterInit(curlHttp);
 		}
 		
 		if (headers != null && headers.size() > 0) {

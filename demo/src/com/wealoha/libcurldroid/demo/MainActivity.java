@@ -13,10 +13,15 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
 
+import com.squareup.picasso.Downloader.Response;
+import com.squareup.picasso.LruCache;
+import com.squareup.picasso.Picasso;
 import com.wealoha.libcurldroid.CurlHttp;
 import com.wealoha.libcurldroid.Result;
+import com.wealoha.libcurldroid.cache.DiskCache;
 import com.wealoha.libcurldroid.picasso.PicassoCurlDownloader;
-import com.wealoha.libcurldroid.picasso.PicassoCurlDownloader.CurlCustomizeCallback;
+import com.wealoha.libcurldroid.retrofit.RetrofitCurlClient;
+import com.wealoha.libcurldroid.third.CurlHttpCallback;
 
 /**
  * 
@@ -125,6 +130,7 @@ public class MainActivity extends Activity {
 					.addHeader("Accept-Encoding", "gzip, deflate, sdch") //
 					//.setProxy("socks5h://192.168.9.104:8888") //
 					.setHttpProxy("10.0.1.2", 8888) //
+					.setHttpProxy("192.168.9.104", 8888) //
 					.addParam("hello", "World!") //
 					.addParam("foo", "Bar!") //
 					.addMultiPartPostParam("multi_a", null, null, "aaaa".getBytes()) //
@@ -133,12 +139,10 @@ public class MainActivity extends Activity {
 					.addMultiPartPostParam("multi_c", "c.html", null, "cccccccccc".getBytes()) //
 					.addMultiPartPostParam("multi_d", "d.html", "text/plain", "no html".getBytes()) //
 					.addMultiPartPostParam("multi_e", "e.html", "text/plain", "你好github".getBytes()) //
-					.postUrl("http://aaba.me/cgi-bin/t.cgi") //
+					.getUrl("http://aaba.me/cgi-bin/t.cgi") //
 					.perform();
 			debug("status " + result.getStatus() + " " + result.getStatusLine() + "\n");
 			Log.d(TAG, "Body:" + result.getBodyAsString());
-			byte[] binaryData = result.getBody();
-//			String header = result.getHeader("ContentType");
 			
 			debug("\n=========headers==========\n");
 			for (Entry<String, String> header : result.getHeaders().entrySet()) {
@@ -150,17 +154,45 @@ public class MainActivity extends Activity {
 			Log.w(TAG, "Exception", e);
 		}
 		
-		try {
-			PicassoCurlDownloader downloader = new PicassoCurlDownloader(new CurlCustomizeCallback() {
-				
-				@Override
-				public void customize(CurlHttp curlHttp) {
-					curlHttp.setHttpProxy("10.0.1.2", 8888);
-				}
-			}, new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/aloha/cache"));
-			downloader.load(Uri.parse("http://aloha-image.qiniudn.com/do_not_delete.gif"), true);
+		// retrofit
+		RetrofitCurlClient client = new RetrofitCurlClient() //
+		.curlCalback(new CurlHttpCallback() {
 			
-			Log.d(TAG, "load image");
+			@Override
+			public void afterInit(CurlHttp curlHttp) {
+				curlHttp.setTimeoutMillis(1000 * 20);
+                curlHttp.setConnectionTimeoutMillis(1000 * 10);
+			}
+		});
+		
+		// picasso
+		try {
+			File cacheDir = new File(Environment.getExternalStorageDirectory(), "libcurldroid"); 
+			// external storage status needed to check
+			DiskCache cache = new DiskCache(cacheDir) //
+				.maxCacheSizeInBytes(256 * 1024 * 1024);
+			PicassoCurlDownloader downloader = new PicassoCurlDownloader() //
+				.cache(cache) //
+				.curlCalback(new CurlHttpCallback() {
+					
+					@Override
+					public void afterInit(CurlHttp curlHttp) {
+						curlHttp.setTimeoutMillis(1000 * 180);
+		                curlHttp.setConnectionTimeoutMillis(1000 * 10);
+					}
+				});
+			
+			LruCache memoryCache = new LruCache((int) Runtime.getRuntime().maxMemory() / 5);
+			Picasso picasso = new Picasso.Builder(this) //
+				.indicatorsEnabled(true) //
+				.loggingEnabled(true) //
+				.downloader(downloader) //
+				.memoryCache(memoryCache) //
+				.build();
+			
+			Response result = downloader.load(Uri.parse("http://aloha-image.qiniudn.com/do_not_delete.gif"), true);
+			
+			Log.d(TAG, "load image: " + result);
 		} catch (Exception e) {
 			Log.w(TAG, "Exception", e);
 		}
