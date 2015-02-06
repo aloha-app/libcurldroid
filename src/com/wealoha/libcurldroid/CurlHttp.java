@@ -7,11 +7,9 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -23,7 +21,9 @@ import com.wealoha.libcurldroid.CurlOpt.OptFunctionPoint;
 import com.wealoha.libcurldroid.CurlOpt.OptLong;
 import com.wealoha.libcurldroid.CurlOpt.OptObjectPoint;
 import com.wealoha.libcurldroid.easy.MultiPart;
+import com.wealoha.libcurldroid.easy.NameValuePair;
 import com.wealoha.libcurldroid.util.CaseInsensitiveMap;
+import com.wealoha.libcurldroid.util.Logger;
 import com.wealoha.libcurldroid.util.StringUtils;
 
 /**
@@ -38,8 +38,8 @@ public class CurlHttp {
 	
 	private Curl curl;
 	private Map<String, String> headerMap;
-	private Map<String, Object> postFieldMap;
 	private List<MultiPart> multiPartList;
+	private List<NameValuePair> simplePairList;
 	private byte[] body;
 	private Boolean get;
 	private boolean followLocation = true;
@@ -47,6 +47,8 @@ public class CurlHttp {
 	private boolean useSystemProxy = true;
 	private String proxyHost;
 	private int proxyPort;
+	private boolean asMultipart = false;
+	private String url;
 
 	
 	private CurlHttp() {
@@ -159,34 +161,51 @@ public class CurlHttp {
 		this.useSystemProxy = yes;
 		return this;
 	}
+
+	/**
+	 * Post via multipart/form-data<br/>
+	 * 
+	 * default: false <br/>
+	 * if {@link #addMultiPartPostParam(String, String, String, byte[])} called, always post as multipart)
+	 * 
+	 * @param yes
+	 * @return
+	 */
+	public CurlHttp postAsMultipart(boolean yes) {
+		this.asMultipart = yes;
+		return this;
+	}
 	
 	public CurlHttp getUrl(String url) {
 		if (isPost()) {
 			throw new IllegalArgumentException("A post url already set!");
 		}
 		get = true;
+		this.url = url;
 		
-		curl.curlEasySetopt(OptLong.CURLOPT_HTTPGET, 1);
-		curl.curlEasySetopt(OptObjectPoint.CURLOPT_URL, url);
 		return this;
 	}
+	
 	
 	public CurlHttp postUrl(String url) {
 		if (get != null && get) {
 			throw new IllegalArgumentException("A get url already set!");
 		}
 		get = false;
+		this.url = url;
 		
-		curl.curlEasySetopt(OptLong.CURLOPT_POST, 1);
-		curl.curlEasySetopt(OptObjectPoint.CURLOPT_URL, url);
 		return this;
 	}
 	
-	public CurlHttp addParam(String key, String value) {
-		if (postFieldMap == null) {
-			postFieldMap = new HashMap<String, Object>();
+	public CurlHttp addParam(String name, String value) {
+		if (StringUtils.isBlank(name)) {
+			throw new IllegalArgumentException("name is required");
 		}
-		postFieldMap.put(key, value);
+		
+		if (simplePairList == null) {
+			simplePairList = new ArrayList<NameValuePair>();
+		}
+		simplePairList.add(new NameValuePair(name, value));
 		return this;
 	}
 	
@@ -197,10 +216,11 @@ public class CurlHttp {
 	 * @return
 	 */
 	public CurlHttp addParam(String name, List<String> values) {
-		if (postFieldMap == null) {
-			postFieldMap = new HashMap<String, Object>();
+		if (values != null && values.size() > 0) {
+			for (String value : values) {
+				addParam(name, value);
+			}
 		}
-		postFieldMap.put(name, values);
 		return this;
 	}
 	
@@ -224,7 +244,6 @@ public class CurlHttp {
 			multiPartList = new ArrayList<MultiPart>();
 		}
 		multiPartList.add(new MultiPart(name, filename, contentType, content));
-		// TODO support array
 		return this;
 	}
 	
@@ -287,6 +306,10 @@ public class CurlHttp {
 	}
 	
 	public Result perform() throws CurlException {
+		if (url == null) {
+			throw new IllegalStateException("url getUrl/postUrl not set");
+		}
+		
 		// - populate headers
 		setRequestHeaders();
 		
@@ -302,17 +325,29 @@ public class CurlHttp {
 		setBodyCallback(bodyOs);
 		
 		if (isPost()) {
-			// TODO support get
-			if (body != null) {
-				// user provided body
-				// TODO check params and warn
-				curl.curlEasySetopt(OptLong.CURLOPT_POSTFIELDSIZE, body.length);
-				curl.curlEasySetopt(OptObjectPoint.CURLOPT_POSTFIELDS, body);
-			} else {
-				// body populate from params
-				setPostParams();
+			// body populate from params
+			setPostParams();
+		} else {
+			String params = getEncodedBodyParams();
+			if (!StringUtils.isBlank(params)) {
+				if (url.contains("?")) {
+					if (url.endsWith("&")) {
+						url += params;
+					} else {
+						url += "&" + params;
+					}
+				} else {
+					url += "?" + params;
+				}
+				
+				Logger.v("contact params to url: %s", url);
 			}
 		}
+		
+		if (get) {
+			curl.curlEasySetopt(OptLong.CURLOPT_HTTPGET, 1);
+		}
+		curl.curlEasySetopt(OptObjectPoint.CURLOPT_URL, url);
 		
 		// follow
 		curl.curlEasySetopt(OptLong.CURLOPT_FOLLOWLOCATION, followLocation ? 1 : 0);
@@ -359,7 +394,7 @@ public class CurlHttp {
 	}
 
 	private boolean isMultipart() {
-		return multiPartList != null && multiPartList.size() > 0;
+		return asMultipart || (multiPartList != null && multiPartList.size() > 0);
 	}
 
 	private boolean isPost() {
@@ -368,87 +403,68 @@ public class CurlHttp {
 	
 	private void setPostParams() {
 		Log.d(TAG, "set post params");
-		try {
-			if (!isMultipart()) {
-				// simple form
-				if (postFieldMap != null && postFieldMap.size() > 0) {
-					StringBuilder body = new StringBuilder();
-					boolean first = true;
-					for (Entry<String, Object> entry : postFieldMap.entrySet()) {
-						if (entry.getValue() instanceof List) {
-							// array field
-							@SuppressWarnings("unchecked")
-							List<String> values = (List<String>) entry.getValue();
-							if (values != null && values.size() > 0) {
-								String name = URLEncoder.encode(entry.getKey(), "UTF-8") + "[]";
-								for (String rawValue : values) {
-									if (!first) {
-										body.append("&");
-									}
-									first = false;
-									
-									String value= URLEncoder.encode(rawValue, "UTF-8");
-									body.append(name);
-									body.append("=");
-									body.append(value);
-									Log.d(TAG, "Append field: " + name + "=" + value);
-								}
-							}
-						} else {
-							// name value field
-							if (!first) {
-								body.append("&");
-							}
-							first = false;
-							
-							String name = URLEncoder.encode(entry.getKey(), "UTF-8");
-							String value= URLEncoder.encode((String) entry.getValue(), "UTF-8");
-							body.append(name);
-							body.append("=");
-							body.append(value);
-							Log.d(TAG, "Append field: " + name + "=" + value);
-						}
-					}
-					
-					// encoded string, doesn't need to set CURLOPT_POSTFIELDSIZE
-					curl.curlEasySetopt(OptObjectPoint.CURLOPT_POSTFIELDS, body.toString());
-				}
+		if (!isMultipart()) {
+			// simple form
+			// user provided body
+			byte[] postBody = body;
+			if (body == null) {
+				if (simplePairList != null && simplePairList.size() > 0) {
+					postBody = getEncodedBodyParams().getBytes();
+				}				
+			}
+			
+			if (postBody != null) {
+				curl.curlEasySetopt(OptLong.CURLOPT_POSTFIELDSIZE, postBody.length);
+				curl.curlEasySetopt(OptObjectPoint.CURLOPT_POSTFIELDS, postBody);
 			} else {
-				// multipart
-				List<MultiPart> finalList = new ArrayList<MultiPart>();
-				Set<String> names = new HashSet<String>();
-				if (postFieldMap != null && postFieldMap.size() > 0) {
-					for (Entry<String, Object> map : postFieldMap.entrySet()) {
-						String name = map.getKey();
-						Object value = map.getValue();
-						if (value instanceof List || names.contains(name)) {
-							throw new IllegalStateException("multipart form not support array field: " + name);
-						}
-						finalList.add(new MultiPart(name, null, null, ((String)value).getBytes()));
-						names.add(name);
-					}
-				}
-				if (multiPartList != null && multiPartList.size() > 0) {
-					for (MultiPart part : multiPartList) {
-						String name = part.getName();
-						if (names.contains(name)) {
-							throw new IllegalStateException("multipart form not support array field: " + name);
-						}
-						finalList.add(part);
-						names.add(name);
-					}
-				}
-				
-				
-				Log.d(TAG, "Set MultiPart data: " + finalList.size());
-				CurlFormadd result = curl.setFormdata(finalList);
-				if (result != CurlFormadd.CURL_FORMADD_OK) {
-					throw new RuntimeException("set formdata fail: " + result);
+				// no data
+				curl.curlEasySetopt(OptLong.CURLOPT_POSTFIELDSIZE, 0);
+			}
+		} else {
+			// multipart
+			List<MultiPart> finalList = new ArrayList<MultiPart>();
+			if (multiPartList != null && multiPartList.size() > 0) {
+				for (MultiPart part : multiPartList) {
+					finalList.add(part);
 				}
 			}
-		} catch (UnsupportedEncodingException e) {
-			throw new RuntimeException("encode fail", e);
+			
+			if (simplePairList != null && simplePairList.size() > 0) {
+				for (NameValuePair pair : simplePairList) {
+					finalList.add(new MultiPart(pair.getName(), null, null, pair.getValue().getBytes()));
+				}
+			}
+			
+			Log.d(TAG, "Set MultiPart data: " + finalList.size());
+			CurlFormadd result = curl.setFormdata(finalList);
+			if (result != CurlFormadd.CURL_FORMADD_OK) {
+				throw new RuntimeException("set formdata fail: " + result);
+			}
 		}
+	}
+
+	private String getEncodedBodyParams() {
+		StringBuilder body = new StringBuilder();
+		boolean first = true;
+		for (NameValuePair pair :simplePairList) {
+			// name value field
+			if (!first) {
+				body.append("&");
+			}
+			first = false;
+			
+			try {
+				String name = URLEncoder.encode(pair.getName(), "UTF-8");
+				String value= URLEncoder.encode(pair.getValue(), "UTF-8");
+				body.append(name);
+				body.append("=");
+				body.append(value);
+				Logger.v("Append field: %s=%s", name, value);
+			} catch (UnsupportedEncodingException e) {
+				Log.w(TAG, "encode faile: name=" + pair.getName() + ", value=" + pair.getValue(), e);
+			}
+		}
+		return body.toString();
 	}
 	
 	private void setProxy() {

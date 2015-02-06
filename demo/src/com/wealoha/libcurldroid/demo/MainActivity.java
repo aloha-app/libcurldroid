@@ -128,6 +128,7 @@ public class MainActivity extends Activity {
 					.addParam("hello", "World!") //
 					.addParam("foo", "Bar!") //
 					.addMultiPartPostParam("multi_a", null, null, "aaaa".getBytes()) //
+					.addMultiPartPostParam("multi_a", null, null, "bbbb".getBytes()) //
 					.addMultiPartPostParam("multi_b", null, "text/html", "b".getBytes()) //
 					.addMultiPartPostParam("multi_c", "c.html", null, "cccccccccc".getBytes()) //
 					.addMultiPartPostParam("multi_d", "d.html", "text/plain", "no html".getBytes()) //

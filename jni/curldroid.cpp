@@ -476,15 +476,18 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_setFormdataNative
         }
 
         if (code != CURL_FORMADD_OK) {
+        	LOGD("curl_formadd error");
         	curl_formfree(post);
         	return (int) code;
         }
     }
 
     if (post != NULL) {
-		curl_easy_setopt(curl, CURLOPT_HTTPPOST, post);
+    	LOGD("set_opt CURLOPT_HTTPPOST");
 		holder->setPost(post);
+		return curl_easy_setopt(curl, CURLOPT_HTTPPOST, post);
     }
+    return 0;
 }
 
 
