@@ -1,9 +1,12 @@
 package com.wealoha.libcurldroid.demo;
 
+import java.io.File;
 import java.util.Map.Entry;
 
 import android.app.Activity;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.Menu;
@@ -12,6 +15,8 @@ import android.widget.TextView;
 
 import com.wealoha.libcurldroid.CurlHttp;
 import com.wealoha.libcurldroid.Result;
+import com.wealoha.libcurldroid.picasso.PicassoCurlDownloader;
+import com.wealoha.libcurldroid.picasso.PicassoCurlDownloader.CurlCustomizeCallback;
 
 /**
  * 
@@ -140,6 +145,21 @@ public class MainActivity extends Activity {
 			}
 			debug("\n\n=========body==========\n");
 			debug(result.getBodyAsString());
+		} catch (Exception e) {
+			Log.w(TAG, "Exception", e);
+		}
+		
+		try {
+			PicassoCurlDownloader downloader = new PicassoCurlDownloader(new CurlCustomizeCallback() {
+				
+				@Override
+				public void customize(CurlHttp curlHttp) {
+					curlHttp.setHttpProxy("10.0.1.2", 8888);
+				}
+			}, new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/aloha/cache"));
+			downloader.load(Uri.parse("http://aloha-image.qiniudn.com/do_not_delete.gif"), true);
+			
+			Log.d(TAG, "load image");
 		} catch (Exception e) {
 			Log.w(TAG, "Exception", e);
 		}

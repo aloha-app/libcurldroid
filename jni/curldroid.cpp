@@ -6,7 +6,7 @@
 #include "curl/curl.h"
 #include "curldroid.h"
 
-#define TAG "CURLDROID"
+#define TAG "libcurldroid"
 #define LOGD(...) (__android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__))
 
 static JavaVM *cached_jvm;
