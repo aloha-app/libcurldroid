@@ -408,9 +408,10 @@ public class CurlHttp {
 			// user provided body
 			byte[] postBody = body;
 			if (body == null) {
-				if (simplePairList != null && simplePairList.size() > 0) {
-					postBody = getEncodedBodyParams().getBytes();
-				}				
+				String bodyString = getEncodedBodyParams();
+				if (bodyString != null) {
+					postBody = bodyString.getBytes();		
+				}
 			}
 			
 			if (postBody != null) {
@@ -444,27 +445,30 @@ public class CurlHttp {
 	}
 
 	private String getEncodedBodyParams() {
-		StringBuilder body = new StringBuilder();
-		boolean first = true;
-		for (NameValuePair pair :simplePairList) {
-			// name value field
-			if (!first) {
-				body.append("&");
+		if (simplePairList != null && simplePairList.size() > 0) {
+			StringBuilder body = new StringBuilder();
+			boolean first = true;
+			for (NameValuePair pair :simplePairList) {
+				// name value field
+				if (!first) {
+					body.append("&");
+				}
+				first = false;
+				
+				try {
+					String name = URLEncoder.encode(pair.getName(), "UTF-8");
+					String value= URLEncoder.encode(pair.getValue(), "UTF-8");
+					body.append(name);
+					body.append("=");
+					body.append(value);
+					Logger.v("Append field: %s=%s", name, value);
+				} catch (UnsupportedEncodingException e) {
+					Log.w(TAG, "encode faile: name=" + pair.getName() + ", value=" + pair.getValue(), e);
+				}
 			}
-			first = false;
-			
-			try {
-				String name = URLEncoder.encode(pair.getName(), "UTF-8");
-				String value= URLEncoder.encode(pair.getValue(), "UTF-8");
-				body.append(name);
-				body.append("=");
-				body.append(value);
-				Logger.v("Append field: %s=%s", name, value);
-			} catch (UnsupportedEncodingException e) {
-				Log.w(TAG, "encode faile: name=" + pair.getName() + ", value=" + pair.getValue(), e);
-			}
+			return body.toString();
 		}
-		return body.toString();
+		return null;
 	}
 	
 	private void setProxy() {
