@@ -169,8 +169,10 @@ public class MainActivity extends Activity {
 		try {
 			File cacheDir = new File(Environment.getExternalStorageDirectory(), "libcurldroid"); 
 			// external storage status needed to check
-			DiskCache cache = new DiskCache(cacheDir) //
-				.maxCacheSizeInBytes(256 * 1024 * 1024);
+			DiskCache cache = DiskCache.Builder.newInstance() //
+					.cachePath(cacheDir) //
+					.maxCacheSizeInBytes(256 * 1024 * 1024) //
+					.build();
 			PicassoCurlDownloader downloader = new PicassoCurlDownloader() //
 				.cache(cache) //
 				.curlCalback(new CurlHttpCallback() {
