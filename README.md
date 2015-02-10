@@ -84,8 +84,12 @@ File cacheDir = new File(Environment.getExternalStorageDirectory(), "libcurldroi
 // external storage status needed to check
 
 // disk based LRU cache
-DiskCache cache = new DiskCache(cacheDir) //
-    .maxCacheSizeInBytes(256 * 1024 * 1024);
+DiskCache cache = Builder.newInstance() //
+    .cachePath(new File(parentPath, "cache")) //
+    .accessTimeSyncMillis(1000 * 30) // 30 secs
+    .evictIntervalMillis(1000 * 180) // 3 mins
+    .maxCacheSizeInBytes(256 * 1024 * 1024) // 256m
+    .build();
     
 PicassoCurlDownloader downloader = new PicassoCurlDownloader() //
     .cache(cache) //
