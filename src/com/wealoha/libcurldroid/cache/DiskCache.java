@@ -220,6 +220,8 @@ public class DiskCache implements Cache {
 					long expectSize = (long) (maxCacheSizeInBytes * evictFactor);
 					if (currentBytes < expectSize) {
 						logger.d("cache size safe, just return: current=%d, limit=%d", currentBytes, maxCacheSizeInBytes);
+						lastEvict = System.currentTimeMillis();
+						return;
 					}
 					
 					long finalBytes = currentBytes;
