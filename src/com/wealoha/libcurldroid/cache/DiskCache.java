@@ -326,7 +326,9 @@ public class DiskCache implements Cache {
 						try {					
 							CacheFile cacheFile = accessTimeUpdateQueue.take();
 							try {
-								writeMeta(cacheFile);
+								synchronized (cacheFile.getKey().intern()) {
+									writeMeta(cacheFile);									
+								}
 								c++;
 							} catch (IOException e) {
 								logger.w("flush meta file to disk fail %s", cacheFile.getKey(), e);
@@ -454,15 +456,13 @@ public class DiskCache implements Cache {
 			targetDir.mkdirs();
 		}
 		
-		synchronized (key.intern()) {
-			File metaFile = new File(getMetaFilePath(key));
-			FileOutputStream metaOs = new FileOutputStream(metaFile);
-			try {
-				metaOs.write(encodeMeta(cacheFile).getBytes());
-				metaOs.flush();
-			} finally {
-				metaOs.close();
-			}
+		File metaFile = new File(getMetaFilePath(key));
+		FileOutputStream metaOs = new FileOutputStream(metaFile);
+		try {
+			metaOs.write(encodeMeta(cacheFile).getBytes());
+			metaOs.flush();
+		} finally {
+			metaOs.close();
 		}
 	}
 	
