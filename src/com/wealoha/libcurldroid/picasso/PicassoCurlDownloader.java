@@ -6,7 +6,9 @@ import java.io.InputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,10 +36,17 @@ import com.wealoha.libcurldroid.util.StringUtils;
 public class PicassoCurlDownloader implements Downloader {
 
 	private static final Logger logger = Logger.getLogger(PicassoCurlDownloader.class);
+
+	private static final String META_LAST_MODIFIED_MILLIS = "lastModified";
+
+	private static final String META_EXPIRE_MILLIS = "expire";
+
+	private static final String META_URL = "url";
 	
 	private Cache cache;
 	
 	private CurlHttpCallback callback;
+	
 	
 	/**
 	 * Default downloader, if you need cache call setCache
@@ -76,54 +85,52 @@ public class PicassoCurlDownloader implements Downloader {
 		if (cache != null) {
 			logger.d("trying load from cache, url=%s", url);
 
-			CacheFile cacheFile = cache.get(url);
+			CacheFile cacheFile = getCacheUrl(url);
 			if (cacheFile == null) {
 				logger.d("cache miss: url=%s", url);
 			} else {
-				// TODO check expire date
-				Log.v(Constant.TAG, "cache hit: " + url);
-				if (cacheFile.getExpireTimeMillis() < System.currentTimeMillis()) {
+				logger.d("cache hit: url=%s ()", url, cacheFile.getFileSize());
+				
+				Long expireMillis = parseMillis(cacheFile.getMeta(), META_EXPIRE_MILLIS);
+				
+				if (expireMillis != null && expireMillis < System.currentTimeMillis()) {
 					// file expired
 					// check 304, if unmodified
-					logger.d("seems file expired test lastModified: url=%s", url);
+					logger.d("seems file expired, test lastModified: url=%s", url);
 					Date checkTime = null;
-					if (cacheFile.getLastModifiedMillis() != null) {
-						checkTime = new Date(cacheFile.getLastModifiedMillis());
+					Long lastModifiedMillis = parseMillis(cacheFile.getMeta(), META_LAST_MODIFIED_MILLIS);
+					if (lastModifiedMillis != null) {
+						checkTime = new Date(lastModifiedMillis);
 					} else {
 						checkTime = new Date(cacheFile.getCreateTimeMillis());
 					}
-					Log.v(Constant.TAG, "see if file modified: " + url);
 					String lastModified = formatHttpDate(checkTime);
 					
 					Result result = getUrlManualDealRedirect(url, lastModified);
 					
 					if (result.getStatus() == 304) {
-						Log.v(Constant.TAG, "file not modified, return cached: " + url);
+						logger.d("file not modified, return cached: %s", url);
 						// FIXME update expire time
 					} else if (result.getStatus() == 200) {
-						Log.v(Constant.TAG, "file modified, replace cached: " + url);
+						logger.d("file modified, replace cached: %s ", url);
 						byte[] body = result.getDecodedBody();
 						cacheResult(url, result);
 						return new Response(new ByteArrayInputStream(body), false, body.length);
 					}
 				}
 				
-				logger.d("return cached url(%d): %s", cacheFile.getFileSize(), url);
 				InputStream is = cache.getInputStream(cacheFile);
 				return new Response(is, true, cacheFile.getFileSize());
 			}
 		} // end if cache test
 		
-		logger.d("cache miss: url=%s", url);
 		if (localCacheOnly) {
 			return null;
 		}
-		
-		// TODO init curl
-		logger.d("get url: %s", url);
+
+		logger.v("download url: %s", url);
 		Result result = getUrlManualDealRedirect(url, null);
 		
-		Log.v(Constant.TAG, "result: " + result.getStatusLine());
 		if (result.getStatus() == 200) {
 			byte[] body = result.getDecodedBody();
 			cacheResult(url, result);
@@ -131,6 +138,14 @@ public class PicassoCurlDownloader implements Downloader {
 		} else {
 			throw new IOException("load url fail: " + url + " " + result.getStatusLine());
 		}
+	}
+	
+	private Long parseMillis(Map<String, String> metaMap, String key) {
+		String str = metaMap.get(key);
+		if (StringUtils.isBlank(str)) {
+			return null;
+		}
+		return Long.valueOf(str);
 	}
 	
 	private Result getUrlManualDealRedirect(String url, String headerIfModifideSince) throws IOException {
@@ -172,12 +187,57 @@ public class PicassoCurlDownloader implements Downloader {
 		return result;
 	}
 	
+	private CacheFile getCacheUrl(String url) throws IOException {
+		if (cache == null) {
+			return null;
+		}
+		
+		String key = StringUtils.md5(url);
+		CacheFile cacheFile = cache.get(key);
+		
+		if (cacheFile != null) {
+			String existUrl = cacheFile.getMeta().get(META_URL);
+			while (!url.equals(existUrl)) {
+				logger.w("key conflict in read: %s exist: %s", url, existUrl);
+				
+				// same as cacheResult
+				key = StringUtils.md5(url + key);
+				cacheFile = cache.get(key);
+				
+				if (cacheFile == null) {
+					break;
+				}
+				existUrl = cacheFile.getMeta().get(META_URL);
+			}
+		}
+		
+		return cacheFile;
+	}
+	
 	private void cacheResult(String url, Result result) throws IOException {
 		if (cache == null) {
 			return;
 		}
 		
-		logger.d("cache url data: %s", url);
+		String key = StringUtils.md5(url);
+		
+		CacheFile existItem = cache.get(key);
+		if (existItem != null) {
+			String existUrl = existItem.getMeta().get(META_URL);
+			while (!url.equals(existUrl)) {
+				logger.w("key conflict for write: %s exist: %s", url, existUrl);
+				// same as getCacheUrl
+				key = StringUtils.md5(url + key);
+				existItem = cache.get(key);
+				
+				if (existItem == null) {
+					break;
+				}
+				existUrl = existItem.getMeta().get(META_URL);
+			}
+		}
+		
+		logger.d("cache url data: %s (%s)", url, key);
 		byte[] body = result.getBody();
 		// "If a response includes both an Expires header and a max-age directive, the max-age directive overrides the Expires header, even if the Expires header is more restrictive."
 		Date expireDate = parseHttpDate(result.getHeader("Expires"));
@@ -195,10 +255,17 @@ public class PicassoCurlDownloader implements Downloader {
 		
 		logger.v("expire date: url=%s, date=%s", url, expireDate);
 		if (expireDate != null && expireDate.after(now)) {
-			Log.v(Constant.TAG, "save date to cache: " + url);
-			cache.set(url, body, lastModified, expireDate);
+			logger.v("save data to cache: %s (%s)", url, key);
+			Map<String, String> metaMap = new HashMap<String, String>();
+			if (lastModified != null) {
+				metaMap.put(META_LAST_MODIFIED_MILLIS, lastModified.getTime() + "");
+			}
+			metaMap.put(META_URL, url);
+			metaMap.put(META_EXPIRE_MILLIS, expireDate.getTime() + "");
+			cache.set(key, body, metaMap);
 		}
 	}
+	
 	
 	
 	private static final Pattern PATTERN_MAX_AGE = Pattern.compile("max-age=(\\d+)", Pattern.CASE_INSENSITIVE);

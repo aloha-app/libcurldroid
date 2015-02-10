@@ -1,5 +1,7 @@
 package com.wealoha.libcurldroid.cache;
 
+import java.util.Map;
+
 /**
  * 
  * 
@@ -8,32 +10,33 @@ package com.wealoha.libcurldroid.cache;
  */
 public class CacheFile {
 
-	private final String url;
-	private final String urlMd5;
+	private final String key;
 	private final long fileSize;
 	private long lastAccessMillis;
-	private final Long lastModifiedMillis;
-	private final long expireTimeMillis;
 	private final long createTimeMillis;
+	private final Map<String, String> meta;
 	
-	public CacheFile(String url, String urlMd5, long fileSize, long lastAccessMillis, Long lastModifiedMillis, long expireTimeMillis,
-			long createTimeMillis) {
+	
+	/**
+	 * 
+	 * @param key
+	 * @param fileSize
+	 * @param lastAccessMillis
+	 * @param createTimeMillis
+	 * @param meta
+	 */
+	public CacheFile(String key, long fileSize, long lastAccessMillis,
+			long createTimeMillis, Map<String, String> meta) {
 		super();
-		this.url = url;
-		this.urlMd5 = urlMd5;
+		this.key = key;
 		this.fileSize = fileSize;
 		this.lastAccessMillis = lastAccessMillis;
-		this.expireTimeMillis = expireTimeMillis;
 		this.createTimeMillis = createTimeMillis;
-		this.lastModifiedMillis = lastModifiedMillis;
+		this.meta = meta;
 	}
 
-	public String getUrl() {
-		return url;
-	}
-	
-	public String getUrlMd5() {
-		return urlMd5;
+	public String getKey() {
+		return key;
 	}
 	
 	public long getFileSize() {
@@ -48,23 +51,19 @@ public class CacheFile {
 		this.lastAccessMillis = lastAccessMillis;
 	}
 	
-	public long getExpireTimeMillis() {
-		return expireTimeMillis;
-	}
-	
 	public long getCreateTimeMillis() {
 		return createTimeMillis;
 	}
-	
-	public Long getLastModifiedMillis() {
-		return lastModifiedMillis;
-	}
 
+	public Map<String, String> getMeta() {
+		return meta;
+	}
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((urlMd5 == null) ? 0 : urlMd5.hashCode());
+		result = prime * result + ((key == null) ? 0 : key.hashCode());
 		return result;
 	}
 
@@ -77,10 +76,10 @@ public class CacheFile {
 		if (getClass() != obj.getClass())
 			return false;
 		CacheFile other = (CacheFile) obj;
-		if (urlMd5 == null) {
-			if (other.urlMd5 != null)
+		if (key == null) {
+			if (other.key != null)
 				return false;
-		} else if (!urlMd5.equals(other.urlMd5))
+		} else if (!key.equals(other.key))
 			return false;
 		return true;
 	}

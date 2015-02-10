@@ -7,7 +7,10 @@
 #include "curldroid.h"
 
 #define TAG "libcurldroid"
+#define LOGW(...) (__android_log_print(ANDROID_LOG_WARN, TAG, __VA_ARGS__))
 #define LOGD(...) (__android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__))
+#define LOGV(...) (__android_log_print(ANDROID_LOG_VERBOSE, TAG, __VA_ARGS__))
+
 
 static JavaVM *cached_jvm;
 
@@ -99,28 +102,28 @@ class Holder {
 
     void cleanGlobalRefs() {
         JNIEnv * env = JNU_GetEnv();
-        LOGD("clean ref");
+        LOGD("clean java global refs");
         while (!m_j_global_refs.empty()) {
             jobject ref = m_j_global_refs.front();
-            LOGD(".");
+            LOGV(".");
             env->DeleteGlobalRef(ref);
             m_j_global_refs.pop_front();
         }
 
-        LOGD("clean ref string");
+        LOGD("clean java global ref strings");
         while (!m_string_refs.empty()) {
             jobject_str_t *ref = m_string_refs.front();
-            LOGD(".");
+            LOGV(".");
             env->ReleaseStringUTFChars((jstring) ref->obj, (const char*)ref->str);
             env->DeleteGlobalRef(ref->obj);
             free(ref);
             m_string_refs.pop_front();
         }
 
-        LOGD("clean ref byteArray");
+        LOGD("clean java global ref byteArrays");
 		while (!m_byte_array_refs.empty()) {
 			jobject_str_t *ref = m_byte_array_refs.front();
-			LOGD(".");
+			LOGV(".");
 			env->ReleaseByteArrayElements((jbyteArray) ref->obj, (jbyte *)ref->str, 0);
 			env->DeleteGlobalRef(ref->obj);
 			free(ref);
@@ -129,10 +132,10 @@ class Holder {
     }
 
     void cleanSlists() {
-        LOGD("clean slists");
+        LOGD("clean curl slists");
         while (!m_slists.empty()) {
             struct curl_slist* slist = m_slists.front();
-            LOGD(".");
+            LOGV(".");
             curl_slist_free_all(slist);
             m_slists.pop_front();
         }
@@ -418,7 +421,7 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_setFormdataNative
         CURLFORMcode code;
         int len = env->GetArrayLength(multi_array);
         for (int i = 0; i < len; i++) {
-            LOGD(".");
+            LOGV(".");
             jobject part = env->GetObjectArrayElement(multi_array, i);
             jstring name = (jstring) env->CallObjectMethod(part, MID_MultiPart_get_name);
             jstring filename = (jstring) env->CallObjectMethod(part, MID_MultiPart_get_filename);
@@ -476,14 +479,14 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_setFormdataNative
         }
 
         if (code != CURL_FORMADD_OK) {
-        	LOGD("curl_formadd error");
+        	LOGW("curl_formadd error %d", code);
         	curl_formfree(post);
         	return (int) code;
         }
     }
 
     if (post != NULL) {
-    	LOGD("set_opt CURLOPT_HTTPPOST");
+    	LOGV("set_opt CURLOPT_HTTPPOST");
 		holder->setPost(post);
 		return curl_easy_setopt(curl, CURLOPT_HTTPPOST, post);
     }
