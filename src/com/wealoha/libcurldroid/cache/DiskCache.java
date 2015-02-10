@@ -24,6 +24,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import android.annotation.SuppressLint;
+import android.graphics.AvoidXfermode;
+import android.os.Build;
+
 import com.wealoha.libcurldroid.util.Logger;
 import com.wealoha.libcurldroid.util.StringUtils;
 
@@ -133,11 +137,20 @@ public class DiskCache implements Cache {
 			return this;
 		}
 		
-		public DiskCache build() {
+		@SuppressLint("NewApi") public DiskCache build() {
 			if (path == null) {
 				throw new IllegalStateException("cachePath not set");
 			}
-			return new DiskCache(path, maxCacheSizeInBytes, accessTimeSyncMillis, evictIntervalMillis, evictFactor);
+			int cacheSize = maxCacheSizeInBytes;
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD) {
+				long freeSpace = path.getFreeSpace();
+				long cacheAllow =  (long) (freeSpace * 0.75);
+				if (maxCacheSizeInBytes > cacheAllow) {
+					logger.w("maxCacheSizeInBytes too big, adjust: %d->%d free=%d", maxCacheSizeInBytes, cacheSize, freeSpace);
+					cacheSize = (int) cacheAllow;
+				}
+			}
+			return new DiskCache(path, cacheSize, accessTimeSyncMillis, evictIntervalMillis, evictFactor);
 		}
 	}
 	
