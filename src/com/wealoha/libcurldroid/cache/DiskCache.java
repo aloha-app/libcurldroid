@@ -20,6 +20,9 @@ import java.util.TimerTask;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.wealoha.libcurldroid.util.Logger;
 import com.wealoha.libcurldroid.util.StringUtils;
@@ -52,6 +55,7 @@ public class DiskCache implements Cache {
 	private final int maxCacheSizeInBytes;
 	private final long evictIntervalMillis;
 	private final Timer accessTimeUpdateTimer;
+	private final Timer evictTimer;
 	
 	private long lastWrite;
 	private long lastEvict;
@@ -65,6 +69,7 @@ public class DiskCache implements Cache {
 		private int maxCacheSizeInBytes;
 		private long evictIntervalMillis = 120 * 1000;
 		private long accessTimeSyncMillis = 120 * 1000;
+		private float evictFactor = 0.75f;
 
 		public static Builder newInstance() {
 			return new Builder();
@@ -84,7 +89,7 @@ public class DiskCache implements Cache {
 		/**
 		 * set max cache size in bytes
 		 * 
-		 * @param size
+		 * @param size 0 means no limit, default 0
 		 * @return
 		 */
 		public Builder maxCacheSizeInBytes(int size) {
@@ -107,6 +112,17 @@ public class DiskCache implements Cache {
 		}
 		
 		/**
+		 * Cache evict if usedBytes > {@link #maxCacheSizeInBytes(int)} * factor
+		 * 
+		 * @param factor
+		 * @return
+		 */
+		public Builder eviceFactor(float factor) {
+			this.evictFactor = factor;
+			return this;
+		}
+		
+		/**
 		 * Last access time flush to disk interval millis.
 		 * 
 		 * @param millis default 120s
@@ -121,7 +137,7 @@ public class DiskCache implements Cache {
 			if (path == null) {
 				throw new IllegalStateException("cachePath not set");
 			}
-			return new DiskCache(path, maxCacheSizeInBytes, accessTimeSyncMillis, evictIntervalMillis);
+			return new DiskCache(path, maxCacheSizeInBytes, accessTimeSyncMillis, evictIntervalMillis, evictFactor);
 		}
 	}
 	
@@ -130,7 +146,7 @@ public class DiskCache implements Cache {
 	 * @param path
 	 * @param accces
 	 */
-	public DiskCache(File path, int maxCacheSizeInBytes, long accessTimeSyncMillis, long evictIntervalMillis) {
+	public DiskCache(File path, int maxCacheSizeInBytes, long accessTimeSyncMillis, long evictIntervalMillis, float evictFactor) {
 		this.path = path;
 		this.maxCacheSizeInBytes = maxCacheSizeInBytes;
 		this.evictIntervalMillis = evictIntervalMillis;
@@ -150,39 +166,183 @@ public class DiskCache implements Cache {
 				return (x < y) ? -1 : 1;
 			}
 		}));
+		
+		// last access time sync timer 
 		accessTimeUpdateQueue = new LinkedBlockingQueue<CacheFile>();
 		accessTimeUpdateTimer = new Timer();
+		initAccessTimeSyncTimer(accessTimeSyncMillis);
+		
+		// evict
+		if (maxCacheSizeInBytes > 0) {
+			evictTimer = new Timer();
+			initEvictTimer(evictIntervalMillis, evictFactor);
+		} else {
+			evictTimer = null;
+		}
+	}
+
+	private void initEvictTimer(long evictIntervalMillis, final float evictFactor) {
+		logger.i("init evict task timer");
+		evictTimer.scheduleAtFixedRate(new TimerTask() {
+			
+			@Override
+			public void run() {
+				try {
+					if (lastEvict > lastWrite) {
+						logger.d("no write since last evict, skip");
+						return;
+					}
+					
+					long t = System.currentTimeMillis();
+					// key, lastAccessTime
+					final Map<String, Long> accessTimeMap = new HashMap<String, Long>();
+					// all files, order by lastAccessTime asc
+					// key, filesize (meta and data)
+					TreeMap<String, Long> fileMap = new TreeMap<String, Long>(new Comparator<String>() {
+						@Override
+						public int compare(String a, String b) {
+							Long t1 = accessTimeMap.get(a);
+							Long t2 = accessTimeMap.get(b);
+							return compare(t1 == null ? 0 : t1, t2 == null ? 0 : t2);
+						}
+						
+						private int compare(long x, long y) {
+							return (x < y) ? -1 : 1;
+						}
+					});
+					
+					AtomicLong allBytes = new AtomicLong();
+					getTotalBytes(path, allBytes, accessTimeMap, fileMap);
+					long currentBytes = allBytes.get();
+					logger.v("calculate total bytes, time: %d, size=%d", (System.currentTimeMillis() - t), currentBytes);
+					
+					
+					long expectSize = (long) (maxCacheSizeInBytes * evictFactor);
+					if (currentBytes < expectSize) {
+						logger.d("cache size safe, just return: current=%d, limit=%d", currentBytes, maxCacheSizeInBytes);
+					}
+					
+					long finalBytes = currentBytes;
+					int keys = 0;
+					for (Entry<String, Long> keyAndSize : fileMap.entrySet()) {
+						if (finalBytes < expectSize) {
+							break;
+						}
+						logger.v("evict item: key=%s, size=%d, lastAccess=%d", keyAndSize.getKey(), keyAndSize.getValue(), accessTimeMap.get(keyAndSize.getKey()));
+						
+						// delete
+						try {
+							remove(keyAndSize.getKey());
+							finalBytes -= keyAndSize.getValue();
+							keys++;
+						} catch (IOException e) {
+							logger.w("evict key fail: %s", keyAndSize.getKey(), e);
+						}
+					}
+					
+					logger.i("evict done: expect=%d, before=%d, after=%d, time=%d, keys=%d",
+							expectSize, currentBytes, finalBytes, (System.currentTimeMillis() - t), keys);
+					
+					// updat elast evict timestamp
+					lastEvict = System.currentTimeMillis();
+				} catch (Throwable t) {
+					logger.w("evict running fail", t);
+				}
+			}
+		}, evictIntervalMillis, evictIntervalMillis);
+	}
+	
+	private final static Pattern PATTERN_FILE = Pattern.compile("(\\w+)(?:\\.meta){0,1}$");
+	
+	private void getTotalBytes(File path, AtomicLong currentTotal, Map<String, Long> accessTimeMap, SortedMap<String, Long> fileSet) {
+		if (path.isDirectory()) {
+			File[] files = path.listFiles();
+			for (File file : files) {
+				if (file.isFile()) {
+					String fileName = file.getName();
+					Matcher m = PATTERN_FILE.matcher(fileName);
+					if (m.find()) {
+						String key = m.group(1);
+						if (fileName.endsWith(".meta")) {
+							// meta file
+							Long lastAccess = lastAccessTimeMap.get(key);
+							if (lastAccess == null) {
+								// last access sync will rewrite meta file, assume lastModified time is lastAccess
+								logger.v("last access time not found, use last mofied: %s", key);
+								lastAccess = file.lastModified();
+							}
+							accessTimeMap.put(key, lastAccess);
+						} else {
+							// data file
+							Long lastAccess = lastAccessTimeMap.get(key);
+							if (lastAccess != null) {
+								accessTimeMap.put(key, lastAccess);
+							} else if (accessTimeMap.get(key) == null) {
+								// need access time to sort
+								try {
+									CacheFile meta = decodeMeta(new File(file.getAbsolutePath() + ".meta"));
+									if (meta != null) {
+										accessTimeMap.put(key, meta.getLastAccessMillis());
+									}
+								} catch (IOException e) {
+									logger.w("read meta fail: " + fileName, e);
+								}
+							}
+						}
+						
+						Long currentSize = fileSet.get(key);
+						if (currentSize == null) {
+							currentSize = 0l;
+						}
+						currentSize += file.length();
+						fileSet.put(key, currentSize);
+						// logger.d("file: %s, %d", file.getName(), file.length());
+						currentTotal.addAndGet(file.length());
+					}
+				} else {
+					getTotalBytes(file, currentTotal, accessTimeMap, fileSet);
+				}
+			}
+		}
+	}
+
+	private void initAccessTimeSyncTimer(long accessTimeSyncMillis) {
+		logger.i("init last access time sync task timer");
 		accessTimeUpdateTimer.scheduleAtFixedRate(new TimerTask() {
 			
 			@Override
 			public void run() {
-				if (accessTimeUpdateQueue.isEmpty()) {
-					return;
-				}
-				
-				List<CacheFile> fails = new ArrayList<CacheFile>();
-				int c = 0;
-				long t = System.currentTimeMillis();
-				while (!accessTimeUpdateQueue.isEmpty()) {
-					try {					
-						CacheFile cacheFile = accessTimeUpdateQueue.take();
-						try {
-							writeMeta(cacheFile);
-							c++;
-						} catch (IOException e) {
-							logger.w("flush meta file to disk fail %s", cacheFile.getKey(), e);
-							fails.add(cacheFile);
-						}
-					} catch (InterruptedException e) {
+				try {
+					if (accessTimeUpdateQueue.isEmpty()) {
+						return;
 					}
-				}
-				
-				logger.i("flush meta task done: count=%d, time=%d", c, (System.currentTimeMillis() - t));
-				
-				if (fails.size() > 0) {
-					// re send to queue
-					logger.i("flush meta fail, try reflush next time: %d", fails.size());
-					accessTimeUpdateQueue.addAll(fails);
+					
+					List<CacheFile> fails = new ArrayList<CacheFile>();
+					int c = 0;
+					long t = System.currentTimeMillis();
+					while (!accessTimeUpdateQueue.isEmpty()) {
+						try {					
+							CacheFile cacheFile = accessTimeUpdateQueue.take();
+							try {
+								writeMeta(cacheFile);
+								c++;
+							} catch (IOException e) {
+								logger.w("flush meta file to disk fail %s", cacheFile.getKey(), e);
+								fails.add(cacheFile);
+							}
+						} catch (InterruptedException e) {
+						}
+					}
+					
+					logger.i("flush meta task done: count=%d, time=%d", c, (System.currentTimeMillis() - t));
+					
+					if (fails.size() > 0) {
+						// re send to queue
+						logger.i("flush meta fail, try reflush next time: %d", fails.size());
+						accessTimeUpdateQueue.addAll(fails);
+					}
+				} catch (Throwable e) {
+					logger.w("flush meta fail", e);
 				}
 			}
 		}, accessTimeSyncMillis, accessTimeSyncMillis);
@@ -254,7 +414,7 @@ public class DiskCache implements Cache {
 	@Override
 	public void set(String key, byte[] data, java.util.Map<String, String> metaMap) throws IOException {
 		synchronized (key.intern()) {
-			CacheFile cacheFile = new CacheFile(key, data.length, 0, System.currentTimeMillis(), metaMap);
+			CacheFile cacheFile = new CacheFile(key, data.length, System.currentTimeMillis(), System.currentTimeMillis(), metaMap);
 			logger.d("cache file: %s", key);
 			
 			File targetDir = new File(getFileDir(key));
@@ -277,6 +437,9 @@ public class DiskCache implements Cache {
 		
 			// save to memory map
 			fileMap.put(key, cacheFile);
+			
+			// update last write timestamp (using by evict)
+			lastWrite = System.currentTimeMillis();
 		}
 	}
 	

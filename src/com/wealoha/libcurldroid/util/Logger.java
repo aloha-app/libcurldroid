@@ -85,8 +85,8 @@ public class Logger {
 		Log.w(tag, String.format(template, args));
 	}
 	
-	public void w(String template,Exception e) {
-		Log.w(tag, template, e);
+	public void w(String template, Throwable t) {
+		Log.w(tag, template, t);
 	}
 	
 	public void w(String template, Object arg1, Exception e) {
