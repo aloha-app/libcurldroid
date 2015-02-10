@@ -17,8 +17,9 @@ public interface Cache {
 	 * 
 	 * @param url
 	 * @return null if not exist
+	 * @throws IOException
 	 */
-	public CacheFile get(String url);
+	public CacheFile get(String url) throws IOException;
 	
 	/**
 	 * return the real {@link InputStream}

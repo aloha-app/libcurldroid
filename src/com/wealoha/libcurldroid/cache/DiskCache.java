@@ -7,12 +7,23 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 
-import android.support.v4.util.LruCache;
 import android.util.Log;
 
 import com.wealoha.libcurldroid.Constant;
+import com.wealoha.libcurldroid.util.Logger;
 import com.wealoha.libcurldroid.util.StringUtils;
 
 /**
@@ -34,37 +45,154 @@ import com.wealoha.libcurldroid.util.StringUtils;
  */
 public class DiskCache implements Cache {
 
-	// key: urlMd5
-	private LruCache<String, CacheFile> fileCache;
-	private File path;
-	private int maxCacheSizeInBytes;
+	// key: urlMd5, order by lastAccessTime desc
+	private final SortedMap<String, CacheFile> fileMap;
+	private final Map<String, Long> lastAccessTimeMap;
+	// for sync lastAccessTime to disk
+	private final LinkedBlockingQueue<CacheFile> accessTimeUpdateQueue;
+	private final File path;
+	private final int maxCacheSizeInBytes;
+	private final long evictIntervalMillis;
+	private final long accessTimeSyncMillis;
+	private final Timer accessTimeUpdateTimer;
+	
+	private long lastWrite;
+	private long lastEvict;
+	
+	
+	private static final Logger logger = Logger.getLogger(DiskCache.class);
+	
+	public static class Builder {
+		
+		private File path;
+		private int maxCacheSizeInBytes;
+		private long evictIntervalMillis = 120 * 1000;
+		private long accessTimeSyncMillis = 120 * 1000;
+
+		public static Builder newInstance() {
+			return new Builder();
+		}
+		
+		/**
+		 * Set cache path
+		 * 
+		 * @param path
+		 * @return
+		 */
+		public Builder cachePath(File path) {
+			this.path = path;
+			return this;
+		}
+		
+		/**
+		 * set max cache size in bytes
+		 * 
+		 * @param size
+		 * @return
+		 */
+		public Builder maxCacheSizeInBytes(int size) {
+			this.maxCacheSizeInBytes = size;
+			return this;
+		}
+		
+		/**
+		 * Cache evict interval millis.
+		 * 
+		 * If too large, cache size may exceed limitations. 
+		 * If too small, will consume more IO resources.
+		 * 
+		 * @param millis default 120s
+		 * @return
+		 */
+		public Builder evictIntervalMillis(long millis) {
+			this.evictIntervalMillis = millis;
+			return this;
+		}
+		
+		/**
+		 * Last access time flush to disk interval millis.
+		 * 
+		 * @param millis default 120s
+		 * @return
+		 */
+		public Builder accessTimeSyncMillis(long millis) {
+			this.accessTimeSyncMillis = millis;
+			return this;
+		}
+		
+		public DiskCache build() {
+			if (path == null) {
+				throw new IllegalStateException("cachePath not set");
+			}
+			return new DiskCache(path, maxCacheSizeInBytes, accessTimeSyncMillis, evictIntervalMillis);
+		}
+	}
 	
 	/**
 	 * 
 	 * @param path
+	 * @param accces
 	 */
-	public DiskCache(File path) {
+	public DiskCache(File path, int maxCacheSizeInBytes, long accessTimeSyncMillis, long evictIntervalMillis) {
 		this.path = path;
-		fileCache = new LruCache<String, CacheFile>(2000);
+		this.maxCacheSizeInBytes = maxCacheSizeInBytes;
+		this.accessTimeSyncMillis = accessTimeSyncMillis;
+		this.evictIntervalMillis = evictIntervalMillis;
+		
+		
+		// meta memory map
+		lastAccessTimeMap = new ConcurrentHashMap<String, Long>();
+		fileMap = Collections.synchronizedSortedMap(new TreeMap<String, CacheFile>(new Comparator<String>() {
+			@Override
+			public int compare(String a, String b) {
+				Long t1 = lastAccessTimeMap.get(a);
+				Long t2 = lastAccessTimeMap.get(b);
+				return compare(t2 == null ? 0 : t2, t1 == null ? 0 : t1);
+			}
+			
+			private int compare(long x, long y) {
+				return (x < y) ? -1 : 1;
+			}
+		}));
+		accessTimeUpdateQueue = new LinkedBlockingQueue<CacheFile>();
+		accessTimeUpdateTimer = new Timer();
+		accessTimeUpdateTimer.scheduleAtFixedRate(new TimerTask() {
+			
+			@Override
+			public void run() {
+				if (accessTimeUpdateQueue.isEmpty()) {
+					return;
+				}
+				
+				List<CacheFile> fails = new ArrayList<CacheFile>();
+				int c = 0;
+				long t = System.currentTimeMillis();
+				while (!accessTimeUpdateQueue.isEmpty()) {
+					try {					
+						CacheFile cacheFile = accessTimeUpdateQueue.take();
+						try {
+							writeMeta(cacheFile);
+							c++;
+						} catch (IOException e) {
+							logger.w("flush meta file to disk fail %s", cacheFile.getUrlMd5());
+							fails.add(cacheFile);
+						}
+					} catch (InterruptedException e) {
+					}
+				}
+				
+				logger.i("flush meta task done: count=%d, time=%d", c, (System.currentTimeMillis() - t));
+				
+				if (fails.size() > 0) {
+					// re send to queue
+					logger.i("flush meta fail, try reflush next time: %d", fails.size());
+					accessTimeUpdateQueue.addAll(fails);
+				}
+			}
+		}, accessTimeSyncMillis, accessTimeSyncMillis);
 	}
 	
-	/**
-	 * set max cache size in bytes
-	 * 
-	 * @param size
-	 * @return
-	 */
-	public DiskCache maxCacheSizeInBytes(int size) {
-		this.maxCacheSizeInBytes = size;
-		return this;
-	}
-	
-	public DiskCache autoEvictEachIntervalMillis(long millis) {
-		// TODO rename
-		return this;
-	}
-	
-	
+
 	/**
 	 * Get
 	 * 
@@ -72,7 +200,7 @@ public class DiskCache implements Cache {
 	 * @return null if miss
 	 */
 	@Override
-	public CacheFile get(String url) {
+	public CacheFile get(String url) throws IOException {
 		String urlMd5 = StringUtils.md5(url);
 		
 		CacheFile item = getCacheFile(urlMd5);
@@ -83,7 +211,8 @@ public class DiskCache implements Cache {
 		
 		while (!url.equals(item.getUrl())) {
 			// md5 conflict, different url with same md5
-			Log.w(Constant.TAG, "md5 conflict url=" + url + " cacheUrl=" + item.getUrl() + ", md5=" + urlMd5);
+			logger.w("md5 conflict url=%s cacheUrl=%s, md5=%s/%s", 
+					url, item.getUrl(), urlMd5, item.getUrlMd5());
 		
 			// recalculate a new md5
 			// same algorithm with set
@@ -114,18 +243,27 @@ public class DiskCache implements Cache {
 		
 		String filePath = getFilePath(file.getUrlMd5());
 		File fileFile = new File(filePath);
+		boolean purge = false;
 		if (fileFile.exists()) {
-			return new FileInputStream(fileFile);
+			if (fileFile.length() == file.getFileSize()) {
+				logger.v("read file as stream: %s", fileFile.getAbsolutePath());
+				return new FileInputStream(fileFile);
+			} else {
+				purge = true;
+			}
 		} else {
+			purge = true;
+		}
+		if (purge) {
 			// file not exist
-			Log.w(Constant.TAG, "meta file not exist");
-			// delete from memory cache
-			fileCache.remove(file.getUrlMd5());
+			logger.w("corrupted file: %s", filePath);
 			// delete meta file
 			File metaFile = new File(getMetaFilePath(file.getUrlMd5()));
 			if (metaFile.exists()) {
 				metaFile.delete();
 			}
+			// delete from memory cache
+			fileMap.remove(file.getUrlMd5());
 		}
 		
 		return null;
@@ -150,10 +288,11 @@ public class DiskCache implements Cache {
 			while (urlMd5.equals(cacheFile.getUrlMd5()) 
 					&& !url.equals(cacheFile.getUrl())) {
 				// same md5, different url, key conflict
-				// same algorithm with set
+				// same algorithm with get
 				urlMd5 = StringUtils.md5(urlMd5 + url);
 				cacheFile = getCacheFile(urlMd5);
 				if (cacheFile == null) {
+					// okay we get the correct md5!
 					break;
 				}
 			}
@@ -171,7 +310,6 @@ public class DiskCache implements Cache {
 				// update
 				cacheFile = new CacheFile(url, urlMd5, data.length, now, lastModifiedTime, expireDate.getTime(), cacheFile.getCreateTimeMillis());
 				Log.v(Constant.TAG, "cache replace file: url=" + url);
-				fileCache.remove(urlMd5);
 			}
 			
 			File targetDir = new File(getFileDir(urlMd5));
@@ -179,8 +317,6 @@ public class DiskCache implements Cache {
 				targetDir.mkdirs();
 			}
 			File dataFile = new File(getFilePath(urlMd5));
-			File metaFile = new File(getMetaFilePath(urlMd5));
-			
 			
 			// save data
 			FileOutputStream dataOs = new FileOutputStream(dataFile);
@@ -191,6 +327,24 @@ public class DiskCache implements Cache {
 				dataOs.close();
 			}
 			
+			// savemeta
+			writeMeta(cacheFile);
+		
+			// save to memory map
+			fileMap.put(urlMd5, cacheFile);
+		}
+	}
+	
+	
+	
+	private void writeMeta(CacheFile cacheFile) throws IOException {
+		File targetDir = new File(getFileDir(cacheFile.getUrlMd5()));
+		if (!targetDir.exists()) {
+			targetDir.mkdirs();
+		}
+		
+		synchronized (cacheFile.getUrlMd5().intern()) {
+			File metaFile = new File(getMetaFilePath(cacheFile.getUrlMd5()));
 			FileOutputStream metaOs = new FileOutputStream(metaFile);
 			try {
 				metaOs.write(encodeMeta(cacheFile).getBytes());
@@ -198,7 +352,6 @@ public class DiskCache implements Cache {
 			} finally {
 				metaOs.close();
 			}
-			
 		}
 	}
 	
@@ -208,29 +361,45 @@ public class DiskCache implements Cache {
 		
 	}
 	
-	private CacheFile getCacheFile(String urlMd5) {
+	private CacheFile getCacheFile(String urlMd5) throws IOException {
 		// -read from cache
-		CacheFile cacheFile = fileCache.get(urlMd5);
+		CacheFile cacheFile = fileMap.get(urlMd5);
 		if (cacheFile == null) {
 			// -fail-back to disk
-		
+			logger.d("trying load meta from disk: %s", urlMd5);
 			String metaFilePath = getMetaFilePath(urlMd5);
 			File metaFile = new File(metaFilePath);
-			try {
-				cacheFile = decodeMeta(metaFile);
-				
-				if (cacheFile != null) {
-					fileCache.put(urlMd5, cacheFile);
-					fileCache.get(urlMd5); // read one time
-				}
-			} catch (IOException e) {
-				// TODO throw exception
+
+			cacheFile = decodeMeta(metaFile);
+			
+			if (cacheFile != null) {
+				logger.d("disk hit: %s", urlMd5);
+				fileMap.put(urlMd5, cacheFile);
+				lastAccessTimeMap.put(urlMd5, cacheFile.getLastAccessMillis());
 			}
 		}
 		
+		if (cacheFile != null) {
+			updateLastAccess(cacheFile);			
+		}
 		return cacheFile;
 	}
 	
+	public void updateLastAccess(CacheFile cacheFile) {
+		logger.d("add last access time task to queue: " + cacheFile.getUrl());
+		accessTimeUpdateQueue.remove(cacheFile);
+		long now = System.currentTimeMillis();
+		cacheFile.setLastAccessMillis(now);
+		lastAccessTimeMap.put(cacheFile.getUrlMd5(), now);
+		accessTimeUpdateQueue.add(cacheFile);
+	}
+	
+	/**
+	 * meta and data' perent path
+	 * 
+	 * @param urlMd5
+	 * @return
+	 */
 	private String getFileDir(String urlMd5) {
 		return String.format("%s/%s/%s/",
 				path.getAbsolutePath(), 
@@ -238,16 +407,24 @@ public class DiskCache implements Cache {
 				urlMd5.substring(1, 2));
 	}
 	
-	@Deprecated
+	/**
+	 * data file full path
+	 * 
+	 * @param urlMd5
+	 * @return
+	 */
 	private String getFilePath(String urlMd5) {
-		return String.format("%s/%s/%s/%s",
-				path.getAbsolutePath(), 
-				urlMd5.substring(0, 1),
-				urlMd5.substring(1, 2),
+		return String.format("%s%s",
+				getFileDir(urlMd5),
 				urlMd5);
 	}
 	
-	@Deprecated
+	/**
+	 * meta file full path
+	 * 
+	 * @param urlMd5
+	 * @return
+	 */
 	private String getMetaFilePath(String urlMd5) {
 		return getFilePath(urlMd5) + ".meta";
 	}
@@ -267,6 +444,10 @@ public class DiskCache implements Cache {
 	}
 	
 	private CacheFile decodeMeta(File metaFile) throws IOException {
+		if (!metaFile.exists()) {
+			return null;
+		}
+		
 		BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(metaFile)));
 		
 		String url = null;

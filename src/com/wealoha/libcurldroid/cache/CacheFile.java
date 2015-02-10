@@ -11,7 +11,7 @@ public class CacheFile {
 	private final String url;
 	private final String urlMd5;
 	private final long fileSize;
-	private final long lastAccessMillis;
+	private long lastAccessMillis;
 	private final Long lastModifiedMillis;
 	private final long expireTimeMillis;
 	private final long createTimeMillis;
@@ -44,6 +44,10 @@ public class CacheFile {
 		return lastAccessMillis;
 	}
 	
+	public void setLastAccessMillis(long lastAccessMillis) {
+		this.lastAccessMillis = lastAccessMillis;
+	}
+	
 	public long getExpireTimeMillis() {
 		return expireTimeMillis;
 	}
@@ -55,4 +59,31 @@ public class CacheFile {
 	public Long getLastModifiedMillis() {
 		return lastModifiedMillis;
 	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((urlMd5 == null) ? 0 : urlMd5.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		CacheFile other = (CacheFile) obj;
+		if (urlMd5 == null) {
+			if (other.urlMd5 != null)
+				return false;
+		} else if (!urlMd5.equals(other.urlMd5))
+			return false;
+		return true;
+	}
+	
+	
 }

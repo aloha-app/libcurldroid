@@ -74,37 +74,41 @@ public class PicassoCurlDownloader implements Downloader {
 		logger.v("trying to load resources: url=%s, localCacheOnly=%s", url, localCacheOnly);
 
 		if (cache != null) {
-			logger.d("load from cache, url=%s", url);
+			logger.d("trying load from cache, url=%s", url);
 
 			CacheFile cacheFile = cache.get(url);
 			if (cacheFile == null) {
 				logger.d("cache miss: url=%s", url);
 			} else {
 				// TODO check expire date
-				Log.v(Constant.TAG, "get url from cache: " + url);
+				Log.v(Constant.TAG, "cache hit: " + url);
 				if (cacheFile.getExpireTimeMillis() < System.currentTimeMillis()) {
 					// file expired
+					// check 304, if unmodified
 					logger.d("seems file expired test lastModified: url=%s", url);
+					Date checkTime = null;
 					if (cacheFile.getLastModifiedMillis() != null) {
-						// check 304, if unmodified
-						// If-Modified-Since
-						Log.v(Constant.TAG, "see if file modified: " + url);
-						String lastModified = formatHttpDate(new Date(cacheFile.getLastAccessMillis()));
-						
-						Result result = getUrlManualDealRedirect(url, lastModified);
-						
-						if (result.getStatus() == 304) {
-							Log.v(Constant.TAG, "file not modified, return cached: " + url);
-						} else if (result.getStatus() == 200) {
-							Log.v(Constant.TAG, "file modified, replace cached: " + url);
-							byte[] body = result.getDecodedBody();
-							cacheResult(url, result);
-							return new Response(new ByteArrayInputStream(body), false, body.length);
-						}
+						checkTime = new Date(cacheFile.getLastModifiedMillis());
+					} else {
+						checkTime = new Date(cacheFile.getCreateTimeMillis());
+					}
+					Log.v(Constant.TAG, "see if file modified: " + url);
+					String lastModified = formatHttpDate(checkTime);
+					
+					Result result = getUrlManualDealRedirect(url, lastModified);
+					
+					if (result.getStatus() == 304) {
+						Log.v(Constant.TAG, "file not modified, return cached: " + url);
+						// FIXME update expire time
+					} else if (result.getStatus() == 200) {
+						Log.v(Constant.TAG, "file modified, replace cached: " + url);
+						byte[] body = result.getDecodedBody();
+						cacheResult(url, result);
+						return new Response(new ByteArrayInputStream(body), false, body.length);
 					}
 				}
 				
-				Log.d(Constant.TAG, "return cached url: " + url);
+				logger.d("return cached url(%d): %s", cacheFile.getFileSize(), url);
 				InputStream is = cache.getInputStream(cacheFile);
 				return new Response(is, true, cacheFile.getFileSize());
 			}
@@ -145,6 +149,8 @@ public class PicassoCurlDownloader implements Downloader {
 				curlHttp.addHeader("If-Modified-Since", headerIfModifideSince);
 			}
 			
+			logger.v("trying download data from url: %s", url);
+			
 			result = curlHttp.getUrl(url).perform();
 			
 			if (result.getStatus() == 301 || result.getStatus() == 302) {
@@ -167,7 +173,11 @@ public class PicassoCurlDownloader implements Downloader {
 	}
 	
 	private void cacheResult(String url, Result result) throws IOException {
-		logger.d("cache url: %s", url);
+		if (cache == null) {
+			return;
+		}
+		
+		logger.d("cache url data: %s", url);
 		byte[] body = result.getBody();
 		// "If a response includes both an Expires header and a max-age directive, the max-age directive overrides the Expires header, even if the Expires header is more restrictive."
 		Date expireDate = parseHttpDate(result.getHeader("Expires"));
@@ -184,7 +194,7 @@ public class PicassoCurlDownloader implements Downloader {
 		}
 		
 		logger.v("expire date: url=%s, date=%s", url, expireDate);
-		if (cache != null && expireDate != null && expireDate.after(now)) {
+		if (expireDate != null && expireDate.after(now)) {
 			Log.v(Constant.TAG, "save date to cache: " + url);
 			cache.set(url, body, lastModified, expireDate);
 		}
