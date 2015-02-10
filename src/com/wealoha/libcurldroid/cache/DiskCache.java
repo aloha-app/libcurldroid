@@ -159,7 +159,7 @@ public class DiskCache implements Cache {
 	 * @param path
 	 * @param accces
 	 */
-	public DiskCache(File path, int maxCacheSizeInBytes, long accessTimeSyncMillis, long evictIntervalMillis, float evictFactor) {
+	private DiskCache(File path, int maxCacheSizeInBytes, long accessTimeSyncMillis, long evictIntervalMillis, float evictFactor) {
 		this.path = path;
 		this.maxCacheSizeInBytes = maxCacheSizeInBytes;
 		this.evictIntervalMillis = evictIntervalMillis;
