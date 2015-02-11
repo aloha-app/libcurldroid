@@ -16,6 +16,7 @@ public interface CurlHttpCallback {
 	 * timeout, headers, redirects, proxies ...
 	 * 
 	 * @param curlHttp
+	 * @param url
 	 */
-	public void afterInit(CurlHttp curlHttp);
+	public void afterInit(CurlHttp curlHttp, String url);
 }

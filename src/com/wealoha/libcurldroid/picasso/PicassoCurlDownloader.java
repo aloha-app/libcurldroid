@@ -156,7 +156,7 @@ public class PicassoCurlDownloader implements Downloader {
 			CurlHttp curlHttp = CurlHttp.newInstance();
 			// set curl
 			if (callback != null) {
-				callback.afterInit(curlHttp);
+				callback.afterInit(curlHttp, url);
 			}
 			
 			curlHttp.setFollowLocation(false);
@@ -165,7 +165,6 @@ public class PicassoCurlDownloader implements Downloader {
 			}
 			
 			logger.v("trying download data from url: %s", url);
-			
 			result = curlHttp.getUrl(url).perform();
 			
 			if (result.getStatus() == 301 || result.getStatus() == 302) {

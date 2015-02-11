@@ -47,7 +47,7 @@ public class RetrofitCurlClient implements Client {
 		CurlHttp curlHttp = CurlHttp.newInstance();
 		
 		if (callback != null) {
-			callback.afterInit(curlHttp);
+			callback.afterInit(curlHttp, request.getUrl());
 		}
 		
 		if (headers != null && headers.size() > 0) {
