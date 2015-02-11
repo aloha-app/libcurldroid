@@ -28,6 +28,9 @@ import com.wealoha.libcurldroid.util.Logger;
 import com.wealoha.libcurldroid.util.StringUtils;
 
 /**
+ * This downloader handle 301 or 302 redirect manually, 
+ * pass 'If-Modified-Since' through all redirect, that avoid 
+ * 'java.io.IOException: Received response with 0 content-length header'
  * 
  * 
  * @author javamonk
