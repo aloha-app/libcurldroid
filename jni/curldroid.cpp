@@ -102,7 +102,7 @@ class Holder {
 
     void cleanGlobalRefs() {
         JNIEnv * env = JNU_GetEnv();
-        LOGD("clean java global refs");
+        LOGV("clean java global refs");
         while (!m_j_global_refs.empty()) {
             jobject ref = m_j_global_refs.front();
             LOGV(".");
@@ -110,7 +110,7 @@ class Holder {
             m_j_global_refs.pop_front();
         }
 
-        LOGD("clean java global ref strings");
+        LOGV("clean java global ref strings");
         while (!m_string_refs.empty()) {
             jobject_str_t *ref = m_string_refs.front();
             LOGV(".");
@@ -120,7 +120,7 @@ class Holder {
             m_string_refs.pop_front();
         }
 
-        LOGD("clean java global ref byteArrays");
+        LOGV("clean java global ref byteArrays");
 		while (!m_byte_array_refs.empty()) {
 			jobject_str_t *ref = m_byte_array_refs.front();
 			LOGV(".");
@@ -132,7 +132,7 @@ class Holder {
     }
 
     void cleanSlists() {
-        LOGD("clean curl slists");
+        LOGV("clean curl slists");
         while (!m_slists.empty()) {
             struct curl_slist* slist = m_slists.front();
             LOGV(".");
@@ -292,7 +292,7 @@ JNIEXPORT int JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasySetoptFunctionN
     jobject cb_ref = 0;
     switch (opt) {
     case CURLOPT_HEADERFUNCTION:
-        LOGD("CURLOPT_HEADERFUNCTION");
+        LOGV("setopt CURLOPT_HEADERFUNCTION");
         curl_easy_setopt(curl, (CURLoption) opt, &write_callback);
         cb_ref = env->NewGlobalRef(cb);
         holder->addGlobalRefs(cb_ref);
@@ -387,15 +387,14 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_curlEasySetoptObjectPo
         jstring value = (jstring) env->GetObjectArrayElement(values, i);
         str = env->GetStringUTFChars(value, 0);
         if (str == 0) {
-            LOGD("break");
             return 0;
         }
-        LOGD("append slist");
+        LOGV("append slist");
         slist = curl_slist_append(slist, str);
         env->ReleaseStringUTFChars(value, str);
     }
     holder->addCurlSlist(slist);
-    LOGD("set slist");
+    LOGD("set slist option=%d, size=%d", opt, nargs);
     return curl_easy_setopt(curl, (CURLoption) opt, slist);
 }
 
@@ -417,9 +416,9 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_setFormdataNative
     }
 
     if (multi_array != NULL) {
-        LOGD("set name/parts");
         CURLFORMcode code;
         int len = env->GetArrayLength(multi_array);
+        LOGD("set name/parts size=%d", len);
         for (int i = 0; i < len; i++) {
             LOGV(".");
             jobject part = env->GetObjectArrayElement(multi_array, i);
@@ -481,6 +480,7 @@ JNIEXPORT jint JNICALL Java_com_wealoha_libcurldroid_Curl_setFormdataNative
         if (code != CURL_FORMADD_OK) {
         	LOGW("curl_formadd error %d", code);
         	curl_formfree(post);
+        	// TODO return fromadd error or setopt error?
         	return (int) code;
         }
     }

@@ -88,6 +88,7 @@ DiskCache cache = Builder.newInstance() //
     .cachePath(new File(parentPath, "cache")) //
     .accessTimeSyncMillis(1000 * 30) // 30 secs
     .evictIntervalMillis(1000 * 180) // 3 mins
+    .evictFactor(0.8f) // 80%
     .maxCacheSizeInBytes(256 * 1024 * 1024) // 256m
     .build();
     

@@ -43,7 +43,9 @@ import com.wealoha.libcurldroid.util.StringUtils;
  * 
  * A file cached with key, data and meta on disk.<br/>
  * When getting a file by key, first we get meta from memory, if not hit, warm meta from disk.
- * Then read InputStream by meta separately.
+ * Then read InputStream by meta separately.<br/>
+ * 
+ * File(s) can be deleted by FileManager.
  * 
  * @author javamonk
  * @createTime 2015-02-05 17:48:18
@@ -121,7 +123,7 @@ public class DiskCache implements Cache {
 		 * @param factor
 		 * @return
 		 */
-		public Builder eviceFactor(float factor) {
+		public Builder evictFactor(float factor) {
 			this.evictFactor = factor;
 			return this;
 		}
@@ -283,7 +285,7 @@ public class DiskCache implements Cache {
 							Long lastAccess = lastAccessTimeMap.get(key);
 							if (lastAccess == null) {
 								// last access sync will rewrite meta file, assume lastModified time is lastAccess
-								logger.v("last access time not found, use last mofied: %s", key);
+								// logger.v("last access time not found, use last mofied: %s", key);
 								lastAccess = file.lastModified();
 							}
 							accessTimeMap.put(key, lastAccess);
