@@ -8,8 +8,8 @@ Delegate all HTTP transport to [libcurl](http://curl.haxx.se/libcurl/), through 
 * [x] easy of use
 * [x] type safe Java interfaces
 * [ ] HTTP and HTTPS request
-* [ ] proxy using http, socks5
-* [ ] Integration for Picasso (Downloader) and Retrofit (Client)
+* [ ] proxy using http(system default), socks5
+* [X] Integration for Picasso (Downloader) and Retrofit (Client)
 * [x] native prebuild .so libs for arch arm, armv7, and x86
 * [x] custom build instructions
 * [x] minSdkVersion 8
