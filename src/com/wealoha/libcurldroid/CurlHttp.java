@@ -355,6 +355,8 @@ public class CurlHttp {
 		
 		if (get) {
 			curl.curlEasySetopt(OptLong.CURLOPT_HTTPGET, 1);
+		} else {
+			curl.curlEasySetopt(OptLong.CURLOPT_POST, 1);
 		}
 		curl.curlEasySetopt(OptObjectPoint.CURLOPT_URL, url);
 		
