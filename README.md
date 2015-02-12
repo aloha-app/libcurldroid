@@ -120,6 +120,17 @@ You can build with your custom configure options.
 
 Full build instructions here: https://github.com/aloha-app/libcurldroid/blob/master/jni/BUILD.md , may be the shortest(and easiest) document on the net:] 
 
+ProGuard
+---------
+
+```
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+-keep class com.wealoha.libcurldroid.Curl$WriteCallback { *; }
+-keep class com.wealoha.libcurldroid.Curl$ReadCallback { *; }
+-keep class com.wealoha.libcurldroid.easy.MultiPart { *; }
+```
 FAQ
 -----
 
