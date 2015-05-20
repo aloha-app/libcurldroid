@@ -159,7 +159,7 @@ public class MainActivity extends Activity {
 		.curlCalback(new CurlHttpCallback() {
 			
 			@Override
-			public void afterInit(CurlHttp curlHttp) {
+			public void afterInit(CurlHttp curlHttp, String url) {
 				curlHttp.setTimeoutMillis(1000 * 20);
                 curlHttp.setConnectionTimeoutMillis(1000 * 10);
 			}
@@ -178,7 +178,7 @@ public class MainActivity extends Activity {
 				.curlCalback(new CurlHttpCallback() {
 					
 					@Override
-					public void afterInit(CurlHttp curlHttp) {
+					public void afterInit(CurlHttp curlHttp, String url) {
 						curlHttp.setTimeoutMillis(1000 * 180);
 		                curlHttp.setConnectionTimeoutMillis(1000 * 10);
 					}
