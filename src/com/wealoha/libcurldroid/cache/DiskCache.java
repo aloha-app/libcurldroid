@@ -25,7 +25,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import android.annotation.SuppressLint;
-import android.graphics.AvoidXfermode;
 import android.os.Build;
 
 import com.wealoha.libcurldroid.util.Logger;
@@ -392,7 +391,7 @@ public class DiskCache implements Cache {
 	 * @throws IOException
 	 */
 	@Override
-	public InputStream getInputStream(CacheFile file) throws IOException {
+	public File getFile(CacheFile file) throws IOException {
 		if (file == null) {
 			return null;
 		}
@@ -403,7 +402,7 @@ public class DiskCache implements Cache {
 		if (fileFile.exists()) {
 			if (fileFile.length() == file.getFileSize()) {
 				logger.d("read file as stream: %s %s", file.getKey(), fileFile.getAbsolutePath());
-				return new FileInputStream(fileFile);
+				return fileFile;
 			} else {
 				// file size
 				purge = true;
@@ -418,6 +417,15 @@ public class DiskCache implements Cache {
 			remove(file.getKey());
 		}
 		
+		return null;
+	}
+	
+	@Override
+	public InputStream getInputStream(CacheFile file) throws IOException {
+		File f = getFile(file);
+		if (f != null) {
+			return new FileInputStream(f);
+		}
 		return null;
 	}
 	

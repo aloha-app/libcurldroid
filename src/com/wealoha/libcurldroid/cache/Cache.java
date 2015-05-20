@@ -1,5 +1,6 @@
 package com.wealoha.libcurldroid.cache;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
@@ -47,6 +48,14 @@ public interface Cache {
 	 */
 	public InputStream getInputStream(CacheFile file) throws IOException;
 
+	/**
+	 * return the real {@link File}
+	 * @param file
+	 * @return
+	 * @throws IOException
+	 */
+	public File getFile(CacheFile file) throws IOException;
+	
 	/**
 	 * save data to cache.
 	 * 
