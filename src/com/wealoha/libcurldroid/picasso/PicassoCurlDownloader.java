@@ -17,6 +17,7 @@ import android.net.Uri;
 import android.util.Log;
 
 import com.squareup.picasso.Downloader;
+import com.squareup.picasso.NetworkPolicy;
 import com.wealoha.libcurldroid.Constant;
 import com.wealoha.libcurldroid.CurlHttp;
 import com.wealoha.libcurldroid.Result;
@@ -81,9 +82,10 @@ public class PicassoCurlDownloader implements Downloader {
 	}
 	
 	@Override
-	public Response load(Uri path, boolean localCacheOnly) throws IOException {
-		String url = path.toString();
-		logger.v("trying to load resources: url=%s, localCacheOnly=%s", url, localCacheOnly);
+	public Response load(Uri uri, int networkPolicy) throws IOException {
+		String url = uri.toString();
+		boolean localCacheOnly = NetworkPolicy.isOfflineOnly(networkPolicy);
+		logger.v("trying to load resources: url=%s, networkPolicy=%s", url, networkPolicy);
 
 		if (cache != null) {
 			logger.d("trying load from cache, url=%s", url);
